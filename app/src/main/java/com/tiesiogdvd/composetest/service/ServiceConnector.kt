@@ -1,4 +1,4 @@
-package com.tiesiogdvd.service
+package com.tiesiogdvd.composetest.service
 
 import android.content.ComponentName
 import android.content.Context

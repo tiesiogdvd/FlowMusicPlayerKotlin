@@ -1,28 +1,38 @@
-package com.tiesiogdvd.service
+package com.tiesiogdvd.composetest.service
 
+import android.app.Notification
+import android.app.NotificationManager.IMPORTANCE_HIGH
 import android.app.PendingIntent
 import android.content.Intent
+import android.support.v4.media.session.MediaSessionCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.Player.COMMAND_PLAY_PAUSE
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.*
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
+import androidx.media3.session.MediaStyleNotificationHelper.MediaStyle
 import androidx.media3.ui.PlayerNotificationManager
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
-import com.tiesiogdvd.composetest.MusicApplication
+import com.tiesiogdvd.composetest.MusicApplication.Companion.CHANNEL_ID_1
 import com.tiesiogdvd.composetest.R
+import com.tiesiogdvd.composetest.util.MusicDataMetadata
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import javax.inject.Inject
 
-@UnstableApi
-@AndroidEntryPoint
-class MusicServiceSecondImpl: MediaLibraryService(), Player.Listener {
+private const val SERVICE_TAG = "MusicService"
+
+@UnstableApi @AndroidEntryPoint
+class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationManager.NotificationListener{
     @Inject
     lateinit var dataSourceFactory: DefaultDataSource.Factory
 
@@ -47,7 +57,9 @@ class MusicServiceSecondImpl: MediaLibraryService(), Player.Listener {
 
     private lateinit var mediaLibrarySession: MediaLibrarySession
 
-    private lateinit var mediaSession:android.media.session.MediaSession
+
+
+   // private lateinit var mediaSession:android.media.session.MediaSession
 
     private var curPlayingSong: MediaMetadata? = null
 
@@ -58,9 +70,53 @@ class MusicServiceSecondImpl: MediaLibraryService(), Player.Listener {
     var currentSong : MediaItem? = null
 
 
-    override fun onEvents(player: Player, events: Player.Events) {
-        super.onEvents(player, events)
+    override fun onNotificationCancelled(
+        notificationId: Int,
+        dismissedByUser: Boolean
+    ) {
+        super.onNotificationCancelled(notificationId, dismissedByUser)
+        if(dismissedByUser){
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            isServiceRunning = false
+            stopSelf()
+        }else{
+            println("BLIAA")
+            exoPlayer.playWhenReady = false
+        }
+    }
 
+    override fun onNotificationPosted(
+        notificationId: Int,
+        notification: Notification,
+        ongoing: Boolean
+    ) {
+        super.onNotificationPosted(notificationId, notification, ongoing)
+        if(ongoing && !isServiceRunning){
+            println(exoPlayer.mediaItemCount)
+            if(exoPlayer.mediaItemCount>0 && exoPlayer.currentMediaItem?.mediaMetadata?.isPlayable == true){
+                ContextCompat.startForegroundService(this@MusicService, Intent(applicationContext, this::class.java))
+                notification.fullScreenIntent = activityIntent
+                notification.contentIntent= activityIntent
+                startForeground(1, notification)
+                isServiceRunning = true
+            }
+
+        }
+    }
+
+    override fun onEvents(player: Player, events: Player.Events) {
+        println("onEvent")
+       // super.onEvents(player, events)
+    }
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        println("onIsPlayingChanged")
+      //  super.onIsPlayingChanged(isPlaying)
+    }
+
+    override fun onTracksChanged(tracks: Tracks) {
+        println("onTracksChanged")
+       // super.onTracksChanged(tracks)
     }
 
     override fun onUpdateNotification(session: MediaSession) {
@@ -76,18 +132,16 @@ class MusicServiceSecondImpl: MediaLibraryService(), Player.Listener {
     }
 
 
+
+
     fun updateNotification(session: MediaSession): MediaNotification {
         println("UPDATING NOTIFICATION")
-        notificationBuilderCompat = NotificationCompat.Builder(this, MusicApplication.CHANNEL_ID_1)
+        notificationBuilderCompat = NotificationCompat.Builder(this, CHANNEL_ID_1)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setSmallIcon(R.drawable.ic_group_23)
+            .setOngoing(true)
             .setContentIntent(activityIntent)
-            .setStyle(
-                MediaStyleNotificationHelper.MediaStyle(session).setShowActionsInCompactView(
-                    Player.COMMAND_SEEK_TO_PREVIOUS,
-                    Player.COMMAND_PLAY_PAUSE,
-                    Player.COMMAND_SEEK_TO_NEXT
-                ))
+            .setStyle(MediaStyle(session).setShowActionsInCompactView(Player.COMMAND_SEEK_TO_PREVIOUS,Player.COMMAND_PLAY_PAUSE,Player.COMMAND_SEEK_TO_NEXT))
 
         return MediaNotification(1, notificationBuilderCompat.build())
     }
@@ -110,27 +164,16 @@ class MusicServiceSecondImpl: MediaLibraryService(), Player.Listener {
 
         activityIntent = packageManager.getLaunchIntentForPackage(packageName).let {
             //.let{} passes activityIntent as it parameter to this PendingIntent
-            PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_IMMUTABLE)
+            PendingIntent.getActivity(this,0,it,PendingIntent.FLAG_IMMUTABLE)
         } //Gives intent that leads to the activity
 
-        mediaLibrarySession = MediaLibrarySession.Builder(this, exoPlayer, librarySessionCallback).build()
-        updateNotification(mediaLibrarySession)
-
-       // mediaSession = android.media.session.MediaSession(this, SERVICE_TAG)
-        //mediaSession.setpl
-        updateNotification(mediaLibrarySession)
-
-        //mediaSession.
-
-
-
-       // playerNotificationManager = PlayerNotificationManager.Builder(
-       //     this,
-       //     1,
-      //      MusicApplication.CHANNEL_ID_1
-       // )
-       //     .build()
-        playerNotificationManager.setMediaSessionToken(mediaLibrarySession.sessionCompatToken as android.support.v4.media.session.MediaSessionCompat.Token)
+        mediaLibrarySession = MediaLibrarySession.Builder(this, exoPlayer, librarySessionCallback).setSessionActivity(activityIntent).build()
+        exoPlayer.addListener(this)
+        playerNotificationManager = PlayerNotificationManager.Builder(this, 1, CHANNEL_ID_1)
+            .setNotificationListener(this)
+            .setChannelImportance(IMPORTANCE_HIGH)
+            .build()
+        playerNotificationManager.setMediaSessionToken(mediaLibrarySession.sessionCompatToken as MediaSessionCompat.Token)
 
 
 
@@ -156,8 +199,8 @@ class MusicServiceSecondImpl: MediaLibraryService(), Player.Listener {
             if(it){
                 println("OBSERVER ACTIVATED")
                 exoPlayer.setMediaSource(musicSource.asMediaSource(dataSourceFactory))
-                exoPlayer.prepare()
-                exoPlayer.seekTo(10,0)
+                //exoPlayer.prepare()
+               // exoPlayer.seekTo(1,0)
                 exoPlayer.playWhenReady = true
             }
         })
@@ -194,7 +237,7 @@ class MusicServiceSecondImpl: MediaLibraryService(), Player.Listener {
 
 
 
-    private inner class CustomMediaLibrarySessionCallback : MediaLibrarySession.Callback {
+    private inner class CustomMediaLibrarySessionCallback : MediaLibrarySession.Callback{
         override fun onConnect(
             session: MediaSession,
             controller: MediaSession.ControllerInfo
@@ -250,6 +293,7 @@ class MusicServiceSecondImpl: MediaLibraryService(), Player.Listener {
                 else -> super.onPlayerCommandRequest(session, controller, playerCommand)
             }
         }
+
     }
 
 
