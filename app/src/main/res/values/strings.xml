@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">ComposeTest</string>
+    <string name ="notification_channel_name">Flow Player Channel</string>
+    <string name ="notification_channel_description">Currently playing music</string>
+</resources>
