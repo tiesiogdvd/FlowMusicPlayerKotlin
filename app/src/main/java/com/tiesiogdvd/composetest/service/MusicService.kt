@@ -1,29 +1,28 @@
 package com.tiesiogdvd.composetest.service
 
+import android.app.Application
 import android.app.Notification
 import android.app.NotificationManager.IMPORTANCE_HIGH
 import android.app.PendingIntent
 import android.content.Intent
-import android.support.v4.media.session.MediaSessionCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
-import androidx.media3.common.Player.COMMAND_PLAY_PAUSE
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.session.*
-import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaStyleNotificationHelper.MediaStyle
 import androidx.media3.ui.PlayerNotificationManager
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.tiesiogdvd.composetest.MusicApplication.Companion.CHANNEL_ID_1
 import com.tiesiogdvd.composetest.R
-import com.tiesiogdvd.composetest.util.MusicDataMetadata
+import com.tiesiogdvd.composetest.data.PreferencesManager
+import com.tiesiogdvd.composetest.data.RepeatMode
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
@@ -31,10 +30,14 @@ import javax.inject.Inject
 
 private const val SERVICE_TAG = "MusicService"
 
+@ExperimentalCoroutinesApi
+@DelicateCoroutinesApi
 @UnstableApi @AndroidEntryPoint
-class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationManager.NotificationListener{
+class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationManager.NotificationListener {
+
+
     @Inject
-    lateinit var dataSourceFactory: DefaultDataSource.Factory
+    lateinit var preferencesManager: PreferencesManager
 
     @Inject
     lateinit var exoPlayer: ExoPlayer
@@ -45,6 +48,8 @@ class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationMa
     @Inject
     lateinit var musicSource: MusicSource
 
+    @Inject
+    lateinit var context: Application
 
     private val librarySessionCallback = CustomMediaLibrarySessionCallback()
 
@@ -57,18 +62,11 @@ class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationMa
 
     private lateinit var mediaLibrarySession: MediaLibrarySession
 
-
-
-   // private lateinit var mediaSession:android.media.session.MediaSession
-
-    private var curPlayingSong: MediaMetadata? = null
-
     private lateinit var playerNotificationManager: PlayerNotificationManager
 
     var isServiceRunning = false
 
     var currentSong : MediaItem? = null
-
 
     override fun onNotificationCancelled(
         notificationId: Int,
@@ -80,7 +78,6 @@ class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationMa
             isServiceRunning = false
             stopSelf()
         }else{
-            println("BLIAA")
             exoPlayer.playWhenReady = false
         }
     }
@@ -100,38 +97,39 @@ class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationMa
                 startForeground(1, notification)
                 isServiceRunning = true
             }
-
         }
     }
 
     override fun onEvents(player: Player, events: Player.Events) {
         println("onEvent")
-       // super.onEvents(player, events)
+        super.onEvents(player, events)
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         println("onIsPlayingChanged")
-      //  super.onIsPlayingChanged(isPlaying)
+        println("PositionEXO " + exoPlayer.currentMediaItem?.mediaId + "  " +  exoPlayer.currentMediaItemIndex)
+        super.onIsPlayingChanged(isPlaying)
     }
 
     override fun onTracksChanged(tracks: Tracks) {
         println("onTracksChanged")
-       // super.onTracksChanged(tracks)
+        super.onTracksChanged(tracks)
     }
 
     override fun onUpdateNotification(session: MediaSession) {
         //super.onUpdateNotification(session)
-
         if(session.player.currentMediaItem!=currentSong){
             //updateNotification(session)
             currentSong = session.player.currentMediaItem
+            if(currentSong!=null){
+                serviceScope.launch {
+                    preferencesManager.updateCurrentSongID(currentSong!!.mediaId.toInt())
+                }
+            }
         }
         playerNotificationManager.setPlayer(exoPlayer)
-        playerNotificationManager.setUsePlayPauseActions(true)
        // startForeground(1,notificationBuilderCompat.build())
     }
-
-
 
 
     fun updateNotification(session: MediaSession): MediaNotification {
@@ -142,25 +140,11 @@ class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationMa
             .setOngoing(true)
             .setContentIntent(activityIntent)
             .setStyle(MediaStyle(session).setShowActionsInCompactView(Player.COMMAND_SEEK_TO_PREVIOUS,Player.COMMAND_PLAY_PAUSE,Player.COMMAND_SEEK_TO_NEXT))
-
         return MediaNotification(1, notificationBuilderCompat.build())
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-
-
-
-        return super.onStartCommand(intent, flags, startId)
     }
 
     override fun onCreate() {
         super.onCreate()
-
-
-        serviceScope.launch {
-            musicSource.getFlow()
-            musicSource.fetchSource()
-        }
 
         activityIntent = packageManager.getLaunchIntentForPackage(packageName).let {
             //.let{} passes activityIntent as it parameter to this PendingIntent
@@ -172,55 +156,64 @@ class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationMa
         playerNotificationManager = PlayerNotificationManager.Builder(this, 1, CHANNEL_ID_1)
             .setNotificationListener(this)
             .setChannelImportance(IMPORTANCE_HIGH)
+            .setPlayActionIconResourceId(R.drawable.ic_action_play)
+            .setPauseActionIconResourceId(R.drawable.ic_action_pause)
+            .setPreviousActionIconResourceId(R.drawable.ic_action_previous)
+            .setNextActionIconResourceId(R.drawable.ic_action_next)
+
             .build()
-        playerNotificationManager.setMediaSessionToken(mediaLibrarySession.sessionCompatToken as MediaSessionCompat.Token)
+        playerNotificationManager.setUseStopAction(true)
+        playerNotificationManager.setMediaSessionToken(mediaLibrarySession.sessionCompatToken)
 
 
 
-        /*setMediaNotificationProvider(object: MediaNotification.Provider{
-            override fun createNotification(
-                mediaSession: MediaSession,
-                customLayout: ImmutableList<CommandButton>,
-                actionFactory: MediaNotification.ActionFactory,
-                onNotificationChangedCallback: MediaNotification.Provider.Callback
-            ): MediaNotification {
-                return updateNotification(mediaSession)
-            }
-            override fun handleCustomCommand(
-                session: MediaSession,
-                action: String,
-                extras: Bundle
-            ): Boolean = false
-        })*/
-
-
-
-        musicSource.fetchState.observeForever({
-            if(it){
-                println("OBSERVER ACTIVATED")
-                exoPlayer.setMediaSource(musicSource.asMediaSource(dataSourceFactory))
-                //exoPlayer.prepare()
-               // exoPlayer.seekTo(1,0)
-                exoPlayer.playWhenReady = true
+        musicSource.concatenatingSource.observeForever ({
+            println("OBSERVER ACTIVATED")
+            println(musicSource.sourceLiveData.value?.size)
+            if (musicSource.sourceLiveData.value?.size!=null){
+                setMediaSource(it)
+                //exoPlayer.setMediaSource(it)
             }
         })
+
+
         println("CREATED SERVICE")
     }
 
 
-    private fun preparePlayer(
-        songs: List<MediaItem>,
-        itemToPlay: MediaItem?,
-        playNow: Boolean
-    ) {
-        val curSongIndex = if(curPlayingSong == null) 0 else songs.indexOf(itemToPlay)
-        exoPlayer.setMediaSource(musicSource.asMediaSource(dataSourceFactory))
-        exoPlayer.prepare()
-        exoPlayer.seekTo(curSongIndex, 0L)
-        exoPlayer.playWhenReady = playNow
+    private fun setMediaSource(mediaSource: MediaSource) {
+            println("BEFORE")
+        val curSongIndex = if(exoPlayer.currentMediaItem==null) getValidIndex()
+        else getValidIndexExo()
+        val curSongPosition = exoPlayer.currentPosition
+        exoPlayer.setMediaSource(mediaSource)
+
+        if (curSongIndex != null && curSongIndex!=-1) {
+            exoPlayer.seekTo(curSongIndex,curSongPosition+200)
+        }
+            exoPlayer.prepare()
+
+           // exoPlayer.shuffleModeEnabled = true
+
+            println("AFTER")
     }
 
+    private fun getValidIndex():Int{
+        val prefCurrentSong = musicSource.itemIndexById(preferencesManager.getSongID())
+        if(prefCurrentSong!=null){
+            return prefCurrentSong
+        }else{
+            return 0
+        }
+    }
 
+    private fun getValidIndexExo():Int?{
+        if(musicSource.songToPlay!=null){
+            return musicSource.itemIndexById(musicSource.songToPlay!!.id)!!
+        }else{
+            return musicSource.sourceLiveData.value?.indexOfFirst{ it.id.toString() == exoPlayer.currentMediaItem!!.mediaId }
+        }
+    }
 
     override fun onDestroy() {
         exoPlayer.release()
@@ -234,67 +227,9 @@ class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationMa
         return mediaLibrarySession
     }
 
-
-
-
     private inner class CustomMediaLibrarySessionCallback : MediaLibrarySession.Callback{
-        override fun onConnect(
-            session: MediaSession,
-            controller: MediaSession.ControllerInfo
-        ): MediaSession.ConnectionResult {
-            return super.onConnect(session, controller)
 
-        }
-
-        override fun onDisconnected(
-            session: MediaSession,
-            controller: MediaSession.ControllerInfo
-        ) {
-            super.onDisconnected(session, controller)
-        }
-
-        override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
-            super.onPostConnect(session, controller)
-        }
-
-        override fun onGetLibraryRoot(
-            session: MediaLibrarySession,
-            browser: MediaSession.ControllerInfo,
-            params: LibraryParams?
-        ): ListenableFuture<LibraryResult<MediaItem>> {
-            return super.onGetLibraryRoot(session, browser, params)
-        }
-
-        override fun onGetChildren(
-            session: MediaLibrarySession,
-            browser: MediaSession.ControllerInfo,
-            parentId: String,
-            page: Int,
-            pageSize: Int,
-            params: LibraryParams?
-        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-            return super.onGetChildren(session, browser, parentId, page, pageSize, params)
-        }
-
-        override fun onPlayerCommandRequest(
-            session: MediaSession,
-            controller: MediaSession.ControllerInfo,
-            playerCommand: Int
-        ): Int {
-            return when (playerCommand) {
-                Player.COMMAND_PLAY_PAUSE -> {
-                    if (session.player.playWhenReady) {
-                        session.player.pause()
-                    } else {
-                        session.player.play()
-                    }
-                    SessionResult.RESULT_INFO_SKIPPED
-                }
-                else -> super.onPlayerCommandRequest(session, controller, playerCommand)
-            }
-        }
 
     }
-
 
 }
