@@ -24,7 +24,12 @@ object BottomNavItems {
         name = "Settings",
         route = "settings",
         icon = R.drawable.ic_action_navbar_settings
-        )
+        ),
+        BottomNavItem(
+        name = "YT Download",
+        route = "yt_download",
+        icon = R.drawable.ic_action_note_no_alpha
+    )
     )
 }
 

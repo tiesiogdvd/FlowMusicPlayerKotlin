@@ -26,6 +26,7 @@ import com.tiesiogdvd.composetest.ui.bottomNavBar.BottomNavItems
 import com.tiesiogdvd.composetest.ui.bottomNavBar.BottomNavigationBar
 import com.tiesiogdvd.composetest.ui.musicPlayer.MusicPlayer
 import com.tiesiogdvd.composetest.ui.theme.*
+import com.tiesiogdvd.composetest.ui.ytDownload.YtDownloadScreen
 import com.tiesiogdvd.composetest.util.PermissionsRetriever
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -83,6 +84,9 @@ fun Navigation(navController: NavHostController) {
         }
         composable("player"){
             MusicPlayer()
+        }
+        composable("yt_download"){
+            YtDownloadScreen()
         }
     }
 
