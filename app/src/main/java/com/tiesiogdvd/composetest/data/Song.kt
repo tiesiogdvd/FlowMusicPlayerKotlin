@@ -17,6 +17,7 @@ data class Song(
     val songPath: String,
     val folder: String? = null,
     val length: Long = 0,
+    val isHidden: Boolean = false,
 
     val hasBitmap: Boolean? = null,
     val isBitmapCached: Boolean? = null,
