@@ -1,21 +1,15 @@
 package com.tiesiogdvd.composetest.ui.library
 
 import android.app.Application
-import android.os.Build
-import androidx.annotation.RequiresApi
-import androidx.compose.runtime.collectAsState
-import androidx.lifecycle.LiveData
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
+import com.tiesiogdvd.composetest.util.MusicDataMetadata
 import com.tiesiogdvd.composetest.util.SongDataGetMusicInfo
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
 import com.tiesiogdvd.playlistssongstest.data.Playlist
 import com.tiesiogdvd.playlistssongstest.data.PlaylistWithSongs
-import com.tiesiogdvd.playlistssongstest.data.Song
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,37 +19,37 @@ class LibraryViewModel @Inject constructor(
     val application: Application,
     val songDataGetMusicInfo: SongDataGetMusicInfo
 ): ViewModel(){
-    val playlists = musicDao.getPlaylists()
     val playlistsWithSongs = musicDao.getPlaylistsWithSongs()
-   // init {
-     //   viewModelScope.launch {
-         //   songDataGetMusicInfo.getMusicInfo()
-      //  }
 
-  //  }
+    lateinit var playlistAllSongs: Playlist
+
     init {
       viewModelScope.launch {
           songDataGetMusicInfo.getMusicInfo(musicDao,application)
+          playlistAllSongs = musicDao.getPlaylist("All Songs")
       }
     }
 
-
-    fun getSongsNumber(playlist: Playlist): Flow<List<Song>> {
-        return musicDao.getPlaylistSongs(playlist.id)
-    }
-
-
-    fun removePlaylist(playlist: Playlist){
-        viewModelScope.launch {
-            musicDao.removePlaylist(playlist)
+    suspend fun getPlaylistBitmap(playlistWithSongs: PlaylistWithSongs):ImageBitmap?{
+        var bitmap: ImageBitmap? = null
+        if (playlistWithSongs.playlist.bitmapSource==null){
+            println("Searching")
+            for(song in playlistWithSongs.songs){
+                bitmap = MusicDataMetadata.getBitmap(song.songPath)
+                if(bitmap!=null){
+                    viewModelScope.launch {
+                        musicDao.setPlaylistBitmapSource(playlistWithSongs.playlist.id,song.songPath)
+                    }
+                    break
+                }
+            }
+        }else{
+            if(musicDao.getSong(playlistId = playlistWithSongs.playlist.id, songPath = playlistWithSongs.playlist.bitmapSource)!=null){
+                bitmap = MusicDataMetadata.getBitmap(playlistWithSongs.playlist.bitmapSource)
+            }else{
+                musicDao.setPlaylistBitmapSource(playlistWithSongs.playlist.id,null)
+            }
         }
+        return bitmap
     }
-
-    fun addPlaylist(playlist: Playlist){
-        viewModelScope.launch {
-            println("Adding Playlist")
-            musicDao.insertPlaylist(playlist = playlist)
-        }
-    }
-
 }
