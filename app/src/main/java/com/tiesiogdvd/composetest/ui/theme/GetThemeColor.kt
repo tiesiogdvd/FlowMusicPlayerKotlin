@@ -72,4 +72,12 @@ object GetThemeColor {
         }
     }
 
+    fun getPurple(isSystemInDarkMode:Boolean): Color {
+        if (isSystemInDarkMode){
+            return purple
+        }else{
+            return purpleDark
+        }
+    }
+
 }
