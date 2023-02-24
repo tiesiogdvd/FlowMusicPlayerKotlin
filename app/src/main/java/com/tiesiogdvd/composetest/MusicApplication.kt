@@ -4,9 +4,6 @@ import android.app.Application
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.Intent
-import androidx.core.content.ContextCompat
-import com.tiesiogdvd.service.MusicService
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
