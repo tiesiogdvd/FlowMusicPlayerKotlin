@@ -3,16 +3,19 @@ package com.tiesiogdvd.playlistssongstest.di
 import android.app.Application
 import android.content.Context
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.room.Room
 import com.tiesiogdvd.composetest.data.PreferencesManager
 import com.tiesiogdvd.composetest.util.SongDataGetMusicInfo
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
 import com.tiesiogdvd.playlistssongstest.data.MusicDatabase
-import com.tiesiogdvd.service.MusicSource
-import com.tiesiogdvd.service.ServiceConnector
+import com.tiesiogdvd.composetest.service.MusicSource
+import com.tiesiogdvd.composetest.service.ServiceConnector
+import com.tiesiogdvd.composetest.ui.bottomNavBar.NavbarController
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -25,8 +28,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideServiceConnection(context:Application)=ServiceConnector(context)
-
+    fun provideServiceConnection(context:Application)= ServiceConnector(context)
 
     @Provides
     @Singleton
@@ -38,10 +40,14 @@ object AppModule {
         .addCallback(callback)
         .build()
 
-
     @Provides
     fun provideMusicDao(db:MusicDatabase) = db.musicDao()
 
+
+    @Singleton
+    @Provides
+    fun provideDataSourceFactory(@ApplicationContext context: Context
+    ) = DefaultDataSource.Factory(context)
 
 
     @SingletonComponentScope
@@ -59,7 +65,18 @@ object AppModule {
     @Provides
     fun providePreferencesManager(context: Application)=PreferencesManager(context)
 
+
+
+    @Singleton
+    @Provides
+    fun provideMusicSource(musicDao: MusicDao, dataSourceFactory: DefaultDataSource.Factory, preferencesManager: PreferencesManager) = MusicSource(musicDao, dataSourceFactory, preferencesManager)
+
+    @Singleton
+    @Provides
+    fun provideNavbarController() = NavbarController()
+
 }
+
 
 
 @Retention(AnnotationRetention.RUNTIME)
