@@ -1,58 +1,54 @@
 package com.tiesiogdvd.composetest.service
 
-import android.annotation.SuppressLint
-
-import android.media.MediaMetadata.*
-import android.media.MediaMetadataRetriever
-import android.net.Uri
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.asLiveData
 
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-import androidx.media3.common.MediaMetadata.PICTURE_TYPE_FRONT_COVER
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.source.ConcatenatingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
-import com.tiesiogdvd.composetest.util.MusicDataMetadata
+import com.tiesiogdvd.composetest.data.PreferencesManager
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
 import com.tiesiogdvd.playlistssongstest.data.Song
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.supervisorScope
-import kotlinx.coroutines.withContext
-import java.io.File
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.flatMapLatest
 import javax.inject.Inject
 
 @UnstableApi class MusicSource @Inject constructor(
-    private val musicDao: MusicDao
+    musicDao: MusicDao,
+    private var dataSourceFactory: DefaultDataSource.Factory,
+    preferencesManager: PreferencesManager
 ){
 
-
+    val currentPlaylistID = preferencesManager.currentSourceFlow
+    val sourcePlaylist = currentPlaylistID.flatMapLatest {
+        musicDao.getPlaylistSongs(it.currentSource, "", sortOrder = it.sortOrder, songSortOrder = it.songSortOrder)
+    }
     var songs = emptyList<MediaItem>()
-    val source = MutableStateFlow("")
-    val fetchState = MutableLiveData(false)
+    val sourceLiveData = sourcePlaylist.asLiveData()
+    val concatenatingSource = MutableLiveData(ConcatenatingMediaSource())
 
+    var songToPlay:Song? = null
 
-    var songsFlow: List<Song> = emptyList()
+    private val serviceJob = Job()
+    private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
 
-
-    suspend fun getFlow(){
-        songsFlow = musicDao.getSongsNonFlow()
+    init {
+        val observer = Observer<List<Song>> {
+            serviceScope.launch {
+                fetchSource()
+            }
+        }
+        sourceLiveData.observeForever(observer)
     }
 
-    suspend fun fetchFlow(){
-        songsFlow = musicDao.getSongsNonFlow()
-    }
 
-    fun fetchSource(){
-        fetchState.postValue(false)
-        println(songsFlow.size)
+    suspend fun fetchSource() = withContext(Dispatchers.IO) {
         println("STARTING FETCH")
-        songs = songsFlow.map { song ->
-            println(song.songPath)
+        songs = sourceLiveData.value!!.map { song ->
             MediaItem.Builder().setMediaId(song.id.toString()).setUri(song.songPath).setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(song.songName)
@@ -66,19 +62,24 @@ import javax.inject.Inject
                     .build()
             ).build()
         }
-        fetchState.postValue(true)
-    }
-
-
-    fun asMediaSource(dataSourceFactory: DefaultDataSource.Factory): ConcatenatingMediaSource {
         val concatenatingMediaSource = ConcatenatingMediaSource()
+        //concatenatingMediaSource.clear()
         songs.forEach { song ->
-            println(song.mediaMetadata.title)
-            println(song.mediaMetadata.artist)
-            println(song.mediaMetadata.title)
             val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(song)
             concatenatingMediaSource.addMediaSource(mediaSource)
         }
-        return concatenatingMediaSource
+        concatenatingSource.postValue(concatenatingMediaSource)
     }
+
+    fun itemIndexById(int: Int?):Int?{
+        val index = sourceLiveData.value?.indexOfFirst{
+            it.id == int
+        }
+        if(index==null){
+            return null
+        }else{
+            return index
+        }
+    }
+
 }
