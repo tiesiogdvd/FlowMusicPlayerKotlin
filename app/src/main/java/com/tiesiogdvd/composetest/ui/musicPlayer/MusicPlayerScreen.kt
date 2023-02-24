@@ -163,7 +163,6 @@ fun MediaPlayerSeekBar(mediaController: MediaController?) {
     LaunchedEffect(mediaController?.playbackState) {
         var position = currentPosition
         mediaController?.playbackState?.let { state ->
-
             while (position < mediaController.currentPosition) {
                 position = mediaController.currentPosition
                 currentPosition = position
@@ -191,7 +190,7 @@ fun MediaPlayerSeekBar(mediaController: MediaController?) {
 
     Slider(
         value = currentPosition.toFloat(),
-        valueRange = 0f..duration.toFloat(),
+        valueRange = 0f..(duration.toFloat().coerceAtLeast(1f)),
         onValueChange = { currentPosition = it.toLong() },
         onValueChangeFinished = { mediaController?.seekTo(currentPosition) },
         enabled = true,
