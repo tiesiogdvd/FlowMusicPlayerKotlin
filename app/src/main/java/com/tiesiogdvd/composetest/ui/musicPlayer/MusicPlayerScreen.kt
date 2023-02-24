@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.ColorUtils
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.media3.common.C
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
@@ -140,7 +141,7 @@ fun MusicPlayerBackground(
 
             MediaPlayerSeekBar(mediaController = viewModel.controller)
             Text(currentSong.songName.toString(), fontSize = 16.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
-            Text(if(currentSong.songArtist==null){""}else{ currentSong.songArtist.toString()} , fontSize = 12.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
+            Text(if(currentSong.songArtist==null){""}else{ currentSong.songArtist.toString()} , fontSize = 12.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp, bottom = 30.dp))
 
             PlaybackButtons()
         }
@@ -172,12 +173,17 @@ fun MediaPlayerSeekBar(mediaController: MediaController?) {
     }
 
     LaunchedEffect(mediaController?.currentMediaItem) {
-        duration = mediaController?.duration ?: 0L
+        if(mediaController?.duration != C.TIME_UNSET){
+            duration = mediaController?.duration ?: 0L
+        }
     }
 
     LaunchedEffect(mediaController?.currentPosition) {
         delay(100) // Wait for 100ms after seeking
         currentPosition = mediaController?.currentPosition ?: 0L
+        if(mediaController?.duration != C.TIME_UNSET){
+            duration = mediaController?.duration ?: 0L
+        }
     }
 
 
