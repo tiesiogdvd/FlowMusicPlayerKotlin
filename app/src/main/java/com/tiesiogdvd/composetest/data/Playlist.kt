@@ -16,6 +16,7 @@ data class Playlist(
     val created:Long = System.currentTimeMillis(),
     val updated:Long = System.currentTimeMillis(),
     val bitmapSource:String? = null,
+    val isHidden: Boolean = false,
     @PrimaryKey(autoGenerate = true) val id:Int = 0
 ) : Parcelable{
     val createdDateFormatted: String
