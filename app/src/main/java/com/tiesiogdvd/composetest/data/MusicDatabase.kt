@@ -20,7 +20,6 @@ abstract class MusicDatabase : RoomDatabase() {
 
     class Callback @Inject constructor(
         private val database: Provider<MusicDatabase>,
-       // private val songDataGetMusicInfo: SongDataGetMusicInfo,
         val songDataGetMusicInfo: Provider<SongDataGetMusicInfo>,
         val application: Application,
         @SingletonComponentScope private val applicationScope:CoroutineScope
@@ -30,23 +29,10 @@ abstract class MusicDatabase : RoomDatabase() {
             super.onCreate(db)
             val dao = database.get().musicDao()
             applicationScope.launch {
-                //songDataGetMusicInfo.getMusicInfo()
                 songDataGetMusicInfo.get().getMusicInfo(dao,application)
-                //songDataGetMusicInfo.getMusicInfo()
-                dao.insertPlaylist(Playlist(playlistName = "name"))
+               /* dao.insertPlaylist(Playlist(playlistName = "name"))
                 dao.insertSong(Song(playlistId = dao.getPlaylist("name").id, songName = "hahda", songPath = "zhaha"))
-                dao.insertSong(Song(playlistId = dao.getPlaylist("name").id, songName = "hetfaha", songPath = "chahwa"))
-                dao.insertSong(Song(playlistId = dao.getPlaylist("name").id, songName = "hfsdaha", songPath = "ahafgha"))
-                dao.insertSong(Song(playlistId = dao.getPlaylist("name").id, songName = "vb", songPath = "hreaha"))
-                dao.insertSong(Song(playlistId = dao.getPlaylist("name").id, songName = "hvdddaha", songPath = "qqwqhaha"))
-
-                dao.insertPlaylist(Playlist(playlistName = "Dududu"))
-                dao.insertPlaylist(Playlist(playlistName = "Dududu"))
-                dao.insertPlaylist(Playlist(playlistName = "Duduasddudididi"))
-                dao.insertPlaylist(Playlist(playlistName = "Dudusfdudididi"))
-                dao.insertPlaylist(Playlist(playlistName = "Duduewdudididi"))
-                dao.insertPlaylist(Playlist(playlistName = "Dudufgdudididi"))
-                dao.insertPlaylist(Playlist(playlistName = "Dududuqweqwedididi"))
+                dao.insertPlaylist(Playlist(playlistName = "Dududuqweqwedididi"))*/
             }
 
         }
