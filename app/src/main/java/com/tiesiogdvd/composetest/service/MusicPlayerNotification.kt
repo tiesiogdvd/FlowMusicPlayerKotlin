@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 
 import android.net.Uri
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
@@ -82,7 +83,7 @@ import java.io.File
         }
     }
 
-    private fun getBitmap(songPath: Uri): Bitmap? {
+    private fun getBitmap(songPath: Uri): ImageBitmap? {
         return MusicDataMetadata.getBitmap(songPath.path)
     }
 }
