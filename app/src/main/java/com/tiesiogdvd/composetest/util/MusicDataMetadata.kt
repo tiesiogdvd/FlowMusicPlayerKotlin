@@ -4,6 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.net.toFile
 import com.tiesiogdvd.composetest.util.TypeConverter.formatDuration
 import java.io.IOException
@@ -58,23 +60,24 @@ class MusicDataMetadata {
     }
 
     companion object {
-        fun getBitmap(path: String?): Bitmap? {
+        fun getBitmap(path: String?): ImageBitmap? {
             val mr = MediaMetadataRetriever()
-            return try {
+            try {
                 mr.setDataSource(path)
                 val data = mr.embeddedPicture
                 val bitmap = data?.let { BitmapFactory.decodeByteArray(data, 0, it.size) }
                 mr.release()
-                bitmap
+                return bitmap?.asImageBitmap()
             } catch (e: Exception) {
                 try {
                     mr.release()
                 } catch (ex: IOException) {
                     throw RuntimeException(ex)
                 }
-                null
+                return null
             }
         }
+    }
 
         fun getBitmap(uri: Uri?): Bitmap? {
             val mr = MediaMetadataRetriever()
@@ -113,4 +116,3 @@ class MusicDataMetadata {
             }
         }
     }
-}
