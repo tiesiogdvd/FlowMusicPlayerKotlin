@@ -3,14 +3,19 @@ package com.tiesiogdvd.composetest.di
 import android.app.Application
 import android.app.Service
 import android.content.Context
+import android.os.Handler
+import android.os.HandlerThread
+import androidx.lifecycle.LifecycleOwner
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import com.tiesiogdvd.composetest.data.PreferencesManager
+import com.tiesiogdvd.composetest.service.MusicService
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
-import com.tiesiogdvd.service.MusicSource
+import com.tiesiogdvd.composetest.service.MusicSource
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,20 +41,11 @@ object ServiceModule {
     fun provideExoPlayer(
         @ApplicationContext context: Context,
         audioAttributes: AudioAttributes
-    ) = ExoPlayer.Builder(context).build().apply {
+    ) =
+        ExoPlayer.Builder(context).build().apply {
         setAudioAttributes(audioAttributes,true)
         setHandleAudioBecomingNoisy(true)
     }
-
-
-    @ServiceScoped
-    @Provides
-    fun provideMusicSource(musicDao: MusicDao) = MusicSource(musicDao)
-
-    @ServiceScoped //Equivalent of singleton
-    @Provides
-    fun provideDataSourceFactory(@ApplicationContext context: Context
-    ) = DefaultDataSource.Factory(context)
 
 
 
