@@ -21,10 +21,17 @@ object TypeConverter {
     }
 
     fun formatDuration(duration: Long): String {
-        val minutes = TimeUnit.MINUTES.convert(duration.toLong(), TimeUnit.MILLISECONDS).toInt()
-        val seconds = (TimeUnit.SECONDS.convert(duration.toLong(), TimeUnit.MILLISECONDS)
-                - minutes * TimeUnit.SECONDS.convert(1, TimeUnit.MINUTES)).toInt()
-        return String.format("%02d:%02d", minutes, seconds)
+        val hours = (TimeUnit.HOURS.convert(duration, TimeUnit.MILLISECONDS)).toInt()
+        val minutes = (TimeUnit.MINUTES.convert(duration, TimeUnit.MILLISECONDS)
+                - TimeUnit.HOURS.toMinutes(TimeUnit.HOURS.convert(duration, TimeUnit.MILLISECONDS))).toInt()
+        val seconds = (TimeUnit.SECONDS.convert(duration, TimeUnit.MILLISECONDS)
+                - TimeUnit.MINUTES.toSeconds(TimeUnit.MINUTES.convert(duration, TimeUnit.MILLISECONDS))).toInt()
+        val sb = StringBuilder()
+        if (hours > 0) {
+            sb.append(String.format("%02d:", hours))
+        }
+        sb.append(String.format("%02d:%02d", minutes, seconds))
+        return sb.toString()
     }
 
     fun getFilePath(file: String?): String {
