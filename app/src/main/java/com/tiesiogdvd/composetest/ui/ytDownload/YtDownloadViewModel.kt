@@ -31,12 +31,13 @@ class YtDownloadViewModel @Inject constructor(
             val helloModule = instance.getModule("test")
             println(context.applicationInfo.nativeLibraryDir)
             val file = File(context.applicationInfo.nativeLibraryDir)
+            val file2 = context.applicationInfo.nativeLibraryDir + "/ffmpeg2.so"
 
             file.list()?.forEach {
                 println(it)
             }
             helloModule.put("progress_callback", ::onCallback)
-            helloModule.callAttr("my_function", input.value, ::onCallback)
+            helloModule.callAttr("my_function", input.value, ::onCallback, file2)
         }
 
 
