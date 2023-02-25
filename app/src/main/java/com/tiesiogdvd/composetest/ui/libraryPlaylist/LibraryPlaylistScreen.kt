@@ -111,8 +111,7 @@ fun LibraryPlaylist(navigator: DestinationsNavigator, playlist: Playlist, viewMo
         {
             Surface(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .recomposeHighlighter(),
+                    .fillMaxSize(),
                 color = GetThemeColor.getBackground(isSystemInDarkTheme())
             ) {
                 Column(
@@ -146,8 +145,7 @@ fun SongsHeader(playlist: Playlist, viewModel: LibraryPlaylistViewModel = hiltVi
     FlowPlayerTheme {
         Surface(
             modifier = Modifier
-                .fillMaxSize()
-                .recomposeHighlighter(),
+                .fillMaxSize(),
             color = GetThemeColor.getBackground(isSystemInDarkTheme())
         ) {
             Column(
@@ -408,8 +406,7 @@ fun SongItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(end = 20.dp)
-            .padding(vertical = 5.dp)
-            .recomposeHighlighter(),
+            .padding(vertical = 5.dp),
         color = Color.Transparent
     ){
         Row(
