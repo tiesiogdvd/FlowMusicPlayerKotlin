@@ -3,7 +3,7 @@ package com.tiesiogdvd.composetest.ui.selectionBar
 import com.tiesiogdvd.composetest.R
 
 enum class SelectionType{
-    ALL_SONGS, PLAYLISTS, PLAYLIST, FOLDERS, FOLDER, STORAGE, FAVORITES
+    ALL_SONGS, PLAYLISTS, PLAYLIST, FOLDERS, FOLDER, STORAGE, FAVORITES, YT_DOWNLOAD
 }
 
 data class SelectionBarItem(
@@ -40,5 +40,7 @@ object SelectionBarList{
         SelectionBarItem("Delete", icon = R.drawable.ic_action_playlist, selectionType = SelectionType.STORAGE, isMultipleAllowed = true),
         SelectionBarItem("Rename", icon = R.drawable.ic_action_playlist, selectionType = SelectionType.STORAGE, isMultipleAllowed = false),
 
+
+        SelectionBarItem("Download selected", icon = R.drawable.ic_action_playlist, selectionType = SelectionType.YT_DOWNLOAD, isMultipleAllowed = true)
     )
 }
