@@ -14,15 +14,19 @@ import com.tiesiogdvd.playlistssongstest.data.MusicDao
 import com.tiesiogdvd.playlistssongstest.data.Playlist
 import com.tiesiogdvd.playlistssongstest.data.Song
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
 data class DownloadableItem(
-    val name:String,
+    val name: String,
+    val index: Int = 0,
+    val playlist: String = "",
     var downloadState: MutableStateFlow<DownloadState> = MutableStateFlow(DownloadState.SELECTION),
     var isSelected: MutableStateFlow<Boolean> =  MutableStateFlow(false)
 )
@@ -51,29 +55,61 @@ class YtDownloadViewModel @Inject constructor(
 
     val selection = MutableStateFlow(0)
 
-    fun onButtonPress(){
+    fun loadSongsFromLink(){
         println(input.value)
         viewModelScope.launch {
-            if(!Python.isStarted()){
-                Python.start(AndroidPlatform(context,))
-                DownloadState.DOWNLOADING
-            }
-
-            val instance = Python.getInstance()
-            val helloModule = instance.getModule("test")
-            println(context.applicationInfo.nativeLibraryDir)
-
-            val file = File(context.applicationInfo.nativeLibraryDir)
-            val file2 = context.applicationInfo.nativeLibraryDir + "/ffmpeg2.so"
-
-            file.list()?.forEach {
-                println(it)
-            }
-            helloModule.put("progress_callback", ::updateProgressCallback)
-            helloModule.callAttr("my_function", input.value, ::updateProgressCallback, file2)
-
+            getSongInfo(input.value)
         }
     }
+
+    suspend fun getSongInfo(url: String) = withContext(Dispatchers.IO) {
+        if(!Python.isStarted()){
+            Python.start(AndroidPlatform(context))
+        }
+
+        val instance = Python.getInstance()
+        val helloModule = instance.getModule("YoutubeVideoDownloader")
+
+        /*println(context.applicationInfo.nativeLibraryDir)
+
+        val libraryDir = context.applicationInfo.nativeLibraryDir
+        val ffmpegExecutable = context.applicationInfo.nativeLibraryDir + "/ffmpeg.so"
+
+        File(libraryDir).list()?.forEach {
+            println(it)
+        }*/
+
+        val ret = helloModule.callAttr("getInfo", url, ::itemReceivedCallback)
+    }
+
+    fun itemReceivedCallback(key: Int, name: String, playlist: String){  //key and song name
+        //item received after entering link
+        print(key)
+        print(name)
+        print(playlist)
+        println()
+
+        var playlistString = "";
+
+        if(playlist.isNotEmpty()){
+            playlistString = "$playlist - "
+        }
+
+        itemList.put(key, DownloadableItem(playlistString + name))
+        itemListFlow.update { itemList }
+        toggleSelectionBar(true)
+    }
+
+    /*fun itemsReceivedCallback(itemsMap: HashMap<Int,String>){  //key and song name
+        //items received after entering link
+        println(itemsMap)
+
+        for(song in itemsMap){
+            itemList.put(song.key, DownloadableItem(song.value))
+            itemListFlow.update { itemList }
+            toggleSelectionBar(true)
+        }
+    }*/
 
 
     fun toggleSelection(key:Int){
@@ -120,16 +156,6 @@ class YtDownloadViewModel @Inject constructor(
         input.value = string
     }
 
-
-    fun itemsReceivedCallback(itemsMap: HashMap<Int,String>){  //key and song name
-        //items received after entering link
-        for(song in itemsMap){
-            itemList.put(song.key, DownloadableItem(song.value))
-            itemListFlow.update { itemList }
-            toggleSelectionBar(true)
-        }
-    }
-
     fun onDownloadSelected(){
         val songList = ArrayList<Int>()
         for(item in itemListFlow.value){
@@ -141,6 +167,13 @@ class YtDownloadViewModel @Inject constructor(
         }
         toggleSelectionBar(false)
         //pass songList to python
+        viewModelScope.launch {
+            startDownload(songList)
+        }
+    }
+
+    private suspend fun startDownload(songList: ArrayList<Int>) = withContext(Dispatchers.IO){
+
     }
 
 
@@ -165,7 +198,7 @@ class YtDownloadViewModel @Inject constructor(
         val directory = File(Environment.getExternalStorageDirectory().absolutePath+"/Music/FlowMusic")
 
         if(file.exists()){
-          val songFile = file.copyTo(directory)
+            val songFile = file.copyTo(directory)
             insertSongToDatabase(songFile)
         }
     }

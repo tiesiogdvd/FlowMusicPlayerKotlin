@@ -106,7 +106,7 @@ fun YtDownloadScreen(viewModel: YtDownloadViewModel = hiltViewModel()) {
                             .padding(top = 15.dp)
                             .padding(end = 20.dp)
                             .fillMaxWidth()
-                            .clickable { viewModel.onButtonPress() }) {
+                            .clickable { viewModel.loadSongsFromLink() }) {
                         Box(
                             contentAlignment = Alignment.CenterStart,
                         ) {
