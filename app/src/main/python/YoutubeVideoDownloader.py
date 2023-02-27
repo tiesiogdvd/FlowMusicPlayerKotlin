@@ -5,7 +5,7 @@ import json
 
 import Presets
 
-def dictFilter(dictionary: dict, keysToKeep=None):
+def dictFilter(dictionary: dict, keysToKeep:list):
     if keysToKeep is None:
         keysTokeep = ['title', 'playlist_index', 'album',
                     'artist', 'release_date','playlist',
@@ -31,19 +31,17 @@ def progressHook(info: dict):
         # give progress_callback index of the downloaded item (for playlists)
         try:
             pass
-            # progress_callback.emit(int(info['info_dict']['playlist_index']))
         except:
             pass
 
     elif info['status'] == 'downloading':
-        #print(
-        #    info['downloaded_bytes'],
-        #    info['total_bytes'],
-        #    info['speed'],
-        #    info['eta'],
-        #    sep=' | ', end='\n'
-        #)
-        pass
+        print(
+            info['downloaded_bytes'],
+            info['total_bytes'],
+            info['speed'],
+            info['eta'],
+            sep=' | ', end='\n'
+        )
 
 """         progress_callback.invoke(
             int(info['total_bytes']),
@@ -54,37 +52,40 @@ def progressHook(info: dict):
 
 
 def getInfo(url: str, callback):
-    print(url)
-    print(callback)
-
-    def postHook(info: dict):
-        #print(info.keys())
-        print(info['info_dict'].keys())
-
-        if info['status'] == 'finished' and info['postprocessor'] == 'MoveFiles':
-            videosInfo.append(dictFilter(info['info_dict']))
-
-            #print('playlist: ')
-            #print(info['info_dict']['playlist'])
-
-            playlist = ''
-
-            if info['info_dict']['playlist'] is not None:
-                playlist = info['info_dict']['playlist']
-
-            callback(len(videosInfo), info['info_dict']['title'], playlist)
-
     ydl_opts = {
         'quiet': False,
+
+        'dump_single_json': True,
+        'extract_flat': True,
         'ignoreerrors': True,
         'skip_download': True,
-        'postprocessor_hooks': [postHook],
+
+        'youtube_include_dash_manifest': False,
+        'youtube_include_hls_manifest': False,
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.extract_info(url)
+        info:dict = ydl.extract_info(url)
 
-    print(videosInfo)
+    if info.get('entries') is None:
+        # single video
+        callback(0, info['title'], '', info['thumbnails'][-1]['url'])
+    elif info.get('entries') is not None:
+        # playlist
+        print(len(info['entries']))
+
+        for i in range(len(info['entries'])):
+            if info['entries'][i]['title'] == '[Deleted video]':
+                continue
+
+            callback(i, info['entries'][i]['title'], info['title'], info['entries'][i]['thumbnails'][-1]['url'])
+
+
+    
+
+
+
+
 
 def downloadVideo(url: str, ffmpegExecutable: str, callback):
     print(os.environ["HOME"])
@@ -153,8 +154,6 @@ def downloadVideo(url: str, ffmpegExecutable: str, callback):
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.extract_info(url)
-
-
 
     tagVideos(videosInfo)
 
