@@ -53,7 +53,7 @@ def progressHook(info: dict):
 
 def getInfo(url: str, callback):
     ydl_opts = {
-        'quiet': False,
+        'quiet': True,
 
         'dump_single_json': True,
         'extract_flat': True,
@@ -64,15 +64,21 @@ def getInfo(url: str, callback):
         'youtube_include_hls_manifest': False,
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info:dict = ydl.extract_info(url)
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info: dict = ydl.extract_info(url)
+    except yt_dlp.utils.DownloadError as e:
+        # Handle the error, for example:
+        print(f"Error: {e}")
+        return
+
 
     if info.get('entries') is None:
         # single video
         callback(0, info['title'], '', info['thumbnails'][-1]['url'])
     elif info.get('entries') is not None:
         # playlist
-        print(len(info['entries']))
+       # print(len(info['entries']))
 
         for i in range(len(info['entries'])):
             if info['entries'][i]['title'] == '[Deleted video]':
