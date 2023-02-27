@@ -43,7 +43,6 @@ fun SongItemBar(song: Song, viewModel: NavbarViewModel = hiltViewModel()) {
             .fillMaxWidth()
             .padding(end = 20.dp)
             .padding(vertical = 5.dp)
-            .recomposeHighlighter()
             .padding(start = 15.dp),
         color = Color.Transparent
     ) {

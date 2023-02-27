@@ -20,6 +20,11 @@ class MusicDataMetadata {
     var lengthString: String? = null
     var mr: MediaMetadataRetriever
 
+    var albumArtist: String? = null
+    var genre:String? = null
+    var year: String? = null
+    var trackNumber: String? = null
+
     init {
         mr = MediaMetadataRetriever()
     }
@@ -52,11 +57,34 @@ class MusicDataMetadata {
             lengthString = formatDuration(length.toLong())
         } catch (e: Exception) {
         }
+
+        try {
+            albumArtist = mr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
+        } catch (e: Exception) {
+        }
+        try {
+            genre = mr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
+        } catch (e: Exception) {
+        }
+        try {
+            year = mr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)
+        } catch (e: Exception) {
+        }
+        try {
+            trackNumber = mr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)
+        } catch (e: Exception) {
+        }
+
         try {
             mr.release()
         } catch (e: IOException) {
             throw RuntimeException(e)
         }
+
+
+
+
+
     }
 
     companion object {

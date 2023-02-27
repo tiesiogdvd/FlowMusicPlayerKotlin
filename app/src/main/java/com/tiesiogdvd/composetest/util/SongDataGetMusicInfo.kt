@@ -8,8 +8,6 @@ import com.tiesiogdvd.playlistssongstest.data.Song
 import java.io.File
 
 object SongDataGetMusicInfo{
-
-
     suspend fun getMusicInfo(musicDao: MusicDao, context: Application) {
         val songList: ArrayList<Song> = ArrayList()
         if(!musicDao.playlistExists("All Songs")){
@@ -42,7 +40,6 @@ object SongDataGetMusicInfo{
                             trackNumber = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)), //Might be CD TRACK NUMBER
                             year = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.YEAR)),
                             playlistId = playlist.id))
-
                     }
                 }
             }

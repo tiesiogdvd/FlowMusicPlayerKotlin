@@ -58,7 +58,7 @@ fun SelectionBarComposable(
                         .height(30.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 20.dp)) {
-                            Checkbox(checked = false, onCheckedChange = {onCheckChange()}, modifier = Modifier.scale(0.8f))
+                            Checkbox(checked = noOfSelected==totalSize, onCheckedChange = {onCheckChange()}, modifier = Modifier.scale(0.8f))
                             Text(text = "Select All", fontSize = 14.sp)
                         }
 
