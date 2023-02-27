@@ -57,11 +57,13 @@ class YtDownloadViewModel @Inject constructor(
 
     val selection = MutableStateFlow(0)
 
+    val loading = MutableStateFlow(false)
+
     val tag = "YtDownloadViewModel"
 
     fun loadSongsFromLink(){
         println(input.value)
-
+        toggleLoading(true)
         if(input.value.isNotEmpty()){
             input.value = input.value.replace("\\s".toRegex(), "")
             viewModelScope.launch {
@@ -96,6 +98,9 @@ class YtDownloadViewModel @Inject constructor(
         //aj ze println("$key $name $playlist $thumbnail")
 
         //println("YO")
+        if(loading.value==true){
+            toggleLoading(false)
+        }
         itemList.put(key, DownloadableItem(name = name, imageSource= MutableStateFlow(thumbnail), playlist = playlist))
         itemListFlow.update { itemList }
         toggleSelectionBar(true)
@@ -134,6 +139,10 @@ class YtDownloadViewModel @Inject constructor(
             isNavbarVisible.update { !boolean }
             isSelectionBarVisible.update { boolean }
         }
+    }
+
+    fun toggleLoading(boolean: Boolean){
+        loading.update { boolean }
     }
 
     fun toggleSelectAll(){
