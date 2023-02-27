@@ -27,7 +27,7 @@ import javax.inject.Inject
 data class DownloadableItem(
     val name: String,
     val index: Int = 0,
-    val playlist: String = "",
+    var playlist: String? = "",
     var imageSource: MutableStateFlow<String?> = MutableStateFlow(null),
     var downloadState: MutableStateFlow<DownloadState> = MutableStateFlow(DownloadState.SELECTION),
     var isSelected: MutableStateFlow<Boolean> =  MutableStateFlow(false)
@@ -63,6 +63,7 @@ class YtDownloadViewModel @Inject constructor(
         println(input.value)
 
         if(input.value.isNotEmpty()){
+            input.value = input.value.replace("\\s".toRegex(), "")
             viewModelScope.launch {
                 getSongInfo(input.value)
             }
@@ -89,18 +90,13 @@ class YtDownloadViewModel @Inject constructor(
         val ret = helloModule.callAttr("getInfo", url, ::itemReceivedCallback)
     }
 
-    fun itemReceivedCallback(key: Int, name: String, playlist: String, thumbnail: String){  //key and song name
+    fun itemReceivedCallback(key: Int, name: String, playlist: String?, thumbnail: String){  //key and song name
         //item received after entering link
         //Log.d(tag, "$key $name $playlist $thumbnail")
-        println("$key $name $playlist $thumbnail")
+        //aj ze println("$key $name $playlist $thumbnail")
 
-        var playlistString = "";
-
-        if(playlist.isNotEmpty()){
-            playlistString = "$playlist - "
-        }
-
-        itemList.put(key, DownloadableItem(playlistString + name, imageSource= MutableStateFlow(thumbnail)))
+        //println("YO")
+        itemList.put(key, DownloadableItem(name = name, imageSource= MutableStateFlow(thumbnail), playlist = playlist))
         itemListFlow.update { itemList }
         toggleSelectionBar(true)
     }
@@ -119,8 +115,6 @@ class YtDownloadViewModel @Inject constructor(
 
     fun toggleSelection(key:Int){
         println(Environment.getExternalStorageDirectory().absolutePath)
-
-
         itemListFlow.getAndUpdate {
             if(it.get(key)?.isSelected?.value==true){
                 it.get(key)?.isSelected?.value=false
