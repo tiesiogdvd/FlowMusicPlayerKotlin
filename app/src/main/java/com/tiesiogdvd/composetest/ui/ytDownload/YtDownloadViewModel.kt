@@ -160,6 +160,7 @@ class YtDownloadViewModel @Inject constructor(
         val songList = ArrayList<Int>()
         for(item in itemListFlow.value){
             if(item.value.isSelected.value==true){
+                item.value.downloadState.value=DownloadState.PREPARING
                 songList.add(item.key)
             }else{
                 itemListFlow.value.remove(item.key)

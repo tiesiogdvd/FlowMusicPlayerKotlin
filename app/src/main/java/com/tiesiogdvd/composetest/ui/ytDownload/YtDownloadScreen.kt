@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -256,20 +257,18 @@ fun DownloadableItemTest(
                 shape = RoundedCornerShape(30.dp)) {
                 Row(modifier = Modifier
                     .padding(start = 15.dp)
+
                     .align(Alignment.CenterVertically)
-                    .fillMaxWidth()) {
-                    Column(modifier = Modifier
-                        .align(Alignment.CenterVertically)
-                        .weight(3.5F)) {
-                        Text(text = songItem.name, fontSize = 14.sp, color = if(selected){GetThemeColor.getText(!isSystemInDarkTheme())} else {GetThemeColor.getText(isSystemInDarkTheme())}, modifier = Modifier.wrapContentHeight(
-                            Alignment.Bottom))
+                    .fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column(modifier = Modifier.fillMaxWidth(0.7f)
+                        .align(Alignment.CenterVertically)) {
+                        Text(text = songItem.name, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, color = if(selected){GetThemeColor.getText(!isSystemInDarkTheme())} else {GetThemeColor.getText(isSystemInDarkTheme())}, modifier = Modifier.wrapContentHeight(Alignment.Bottom))
                     }
 
                     Text(text = downloadType.name, fontSize = 11.sp, color = if(selected){GetThemeColor.getText(!isSystemInDarkTheme())} else {GetThemeColor.getText(isSystemInDarkTheme())}, modifier = Modifier
                         .wrapContentHeight()
                         .align(Alignment.CenterVertically)
-                        .padding(end = 15.dp)
-                        .weight(0.8F))
+                        .padding(end = 15.dp))
                 }
             }
         }
