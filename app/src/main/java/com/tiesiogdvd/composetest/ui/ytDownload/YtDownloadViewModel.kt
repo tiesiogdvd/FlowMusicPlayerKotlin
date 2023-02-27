@@ -2,6 +2,7 @@ package com.tiesiogdvd.composetest.ui.ytDownload
 
 import android.app.Application
 import android.os.Environment
+import android.util.Log
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -27,6 +28,7 @@ data class DownloadableItem(
     val name: String,
     val index: Int = 0,
     val playlist: String = "",
+    var imageSource: MutableStateFlow<String?> = MutableStateFlow(null),
     var downloadState: MutableStateFlow<DownloadState> = MutableStateFlow(DownloadState.SELECTION),
     var isSelected: MutableStateFlow<Boolean> =  MutableStateFlow(false)
 )
@@ -55,10 +57,15 @@ class YtDownloadViewModel @Inject constructor(
 
     val selection = MutableStateFlow(0)
 
+    val tag = "YtDownloadViewModel"
+
     fun loadSongsFromLink(){
         println(input.value)
-        viewModelScope.launch {
-            getSongInfo(input.value)
+
+        if(input.value.isNotEmpty()){
+            viewModelScope.launch {
+                getSongInfo(input.value)
+            }
         }
     }
 
@@ -82,12 +89,10 @@ class YtDownloadViewModel @Inject constructor(
         val ret = helloModule.callAttr("getInfo", url, ::itemReceivedCallback)
     }
 
-    fun itemReceivedCallback(key: Int, name: String, playlist: String){  //key and song name
+    fun itemReceivedCallback(key: Int, name: String, playlist: String, thumbnail: String){  //key and song name
         //item received after entering link
-        print(key)
-        print(name)
-        print(playlist)
-        println()
+        //Log.d(tag, "$key $name $playlist $thumbnail")
+        println("$key $name $playlist $thumbnail")
 
         var playlistString = "";
 
@@ -95,7 +100,7 @@ class YtDownloadViewModel @Inject constructor(
             playlistString = "$playlist - "
         }
 
-        itemList.put(key, DownloadableItem(playlistString + name))
+        itemList.put(key, DownloadableItem(playlistString + name, imageSource= MutableStateFlow(thumbnail)))
         itemListFlow.update { itemList }
         toggleSelectionBar(true)
     }
