@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,11 +24,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.Coil
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.tiesiogdvd.composetest.R
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionBarComposable
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionBarList
@@ -105,7 +110,7 @@ fun YtDownloadScreen(viewModel: YtDownloadViewModel = hiltViewModel()) {
                         modifier = Modifier
                             .height(50.dp)
                             .padding(top = 15.dp)
-                            .padding(end = 20.dp)
+                            .padding(end = 10.dp)
                             .fillMaxWidth()
                             .clickable { viewModel.loadSongsFromLink() }) {
                         Box(
@@ -122,31 +127,6 @@ fun YtDownloadScreen(viewModel: YtDownloadViewModel = hiltViewModel()) {
                             )
                         }
                     }
-
-                    Surface(shape = RoundedCornerShape(30.dp),
-                        color = GetThemeColor.getButton(isSystemInDarkTheme()),
-                        modifier = Modifier
-                            .height(50.dp)
-                            .padding(top = 15.dp)
-                            .padding(end = 20.dp)
-                            .fillMaxWidth()
-                            .clickable { viewModel.addDummyItems() }) {
-                        Box(
-                            contentAlignment = Alignment.CenterStart,
-                        ) {
-                            Text(
-                                text = "Add item",
-                                fontSize = 15.sp,
-                                color = GetThemeColor.getText(isSystemInDarkTheme()),
-                                modifier = Modifier
-                                    .padding(start = 10.dp, bottom = 1.dp)
-                                    .height(50.dp)
-                                    .wrapContentSize()
-                            )
-                        }
-                    }
-
-
                     DownloadableList()
                 }
 
@@ -187,7 +167,7 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
                 .combinedClickable(
                     onClick = {
                         println("hahahah")
-                        if(isSelectionBarVisible){
+                        if (isSelectionBarVisible) {
                             viewModel.toggleSelection(key)
                         }
                     },
@@ -217,20 +197,20 @@ fun DownloadableItemTest(
 ){
     var selected = isSelected.collectAsState().value
     var downloadType = downloadState.collectAsState().value
+    val imageSource = songItem.imageSource.collectAsState().value
     val initialColor = if(!selected){GetThemeColor.getButton(isSystemInDarkTheme())}else{GetThemeColor.getPurple(isSystemInDarkTheme())}
     var surfaceColor by remember { mutableStateOf(initialColor) }
-    val targetColor = if(!selected){GetThemeColor.getButton(isSystemInDarkTheme())}else{GetThemeColor.getPurple(isSystemInDarkTheme())}
+    val targetColor = if(downloadType == DownloadState.FINISHED){GetThemeColor.getGreen(isSystemInDarkTheme())}else{if(!selected){GetThemeColor.getButton(isSystemInDarkTheme())}else{GetThemeColor.getPurple(isSystemInDarkTheme())}}
     val animatedColor by animateColorAsState(targetValue = targetColor, tween(durationMillis = 400, easing = EaseIn))
 
     LaunchedEffect(animatedColor) {
-
         surfaceColor = animatedColor
     }
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(end = 20.dp)
+            .padding(end = 10.dp)
             .padding(vertical = 5.dp),
         color = Color.Transparent
     ){
@@ -238,11 +218,13 @@ fun DownloadableItemTest(
             modifier = Modifier,
         ) {
             Surface(shape = RoundedCornerShape(30.dp), modifier = Modifier.align(Alignment.CenterVertically), color = GetThemeColor.getButton(isSystemInDarkTheme())) {
-                if (downloadType == DownloadState.FINISHED) {
-                    Image(painter = painterResource(id = R.drawable.ic_group_23_image_6), contentDescription = "Downloadable Item", Modifier.size(40.dp))
-                } else {
-                    CircularProgressIndicator(modifier = Modifier.size(40.dp))
+                if(imageSource!=null){
+                    AsyncImage(model = ImageRequest.Builder(LocalContext.current).data(imageSource).crossfade(true).build(), contentDescription = "Downloadable Image")
                 }
+                if (downloadType != DownloadState.FINISHED && downloadType!=DownloadState.SELECTION) {
+                    LinearProgressIndicator(modifier = Modifier.width(100.dp))
+                }
+                
             }
             Spacer(modifier = Modifier
                 .size(30.dp)
@@ -260,15 +242,10 @@ fun DownloadableItemTest(
 
                     .align(Alignment.CenterVertically)
                     .fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column(modifier = Modifier.fillMaxWidth(0.7f)
+                    Column(modifier = Modifier
                         .align(Alignment.CenterVertically)) {
                         Text(text = songItem.name, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, color = if(selected){GetThemeColor.getText(!isSystemInDarkTheme())} else {GetThemeColor.getText(isSystemInDarkTheme())}, modifier = Modifier.wrapContentHeight(Alignment.Bottom))
                     }
-
-                    Text(text = downloadType.name, fontSize = 11.sp, color = if(selected){GetThemeColor.getText(!isSystemInDarkTheme())} else {GetThemeColor.getText(isSystemInDarkTheme())}, modifier = Modifier
-                        .wrapContentHeight()
-                        .align(Alignment.CenterVertically)
-                        .padding(end = 15.dp))
                 }
             }
         }
