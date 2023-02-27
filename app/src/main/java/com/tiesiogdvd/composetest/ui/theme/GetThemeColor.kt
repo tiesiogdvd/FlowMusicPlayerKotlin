@@ -2,82 +2,47 @@ package com.tiesiogdvd.composetest.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+
 object GetThemeColor {
 
     fun getBackground(isSystemInDarkMode:Boolean): Color {
-        if (isSystemInDarkMode){
-            return backgroundDark
-        }else{
-            return background
-        }
+        return if (isSystemInDarkMode) backgroundDark else background
     }
 
     fun getBackgroundSecondary(isSystemInDarkMode:Boolean): Color {
-        if (isSystemInDarkMode){
-            return backgroundSecondaryDark
-        }else{
-            return backgroundSecondary
-        }
+        return if (isSystemInDarkMode) backgroundSecondaryDark else backgroundSecondary
     }
 
     fun getBackgroundThird(isSystemInDarkMode:Boolean): Color {
-        if (isSystemInDarkMode){
-            return backgroundThirdDark
-        }else{
-            return backgroundThird
-        }
+        return if (isSystemInDarkMode) backgroundThirdDark else backgroundThird
     }
 
     fun getText(isSystemInDarkMode:Boolean): Color {
-        if (isSystemInDarkMode){
-            return textDark
-        }else{
-            return text
-        }
+        return if (isSystemInDarkMode) textDark else text
     }
 
     fun getTextSecondary(isSystemInDarkMode:Boolean): Color {
-        if (isSystemInDarkMode){
-            return text_secondaryDark
-        }else{
-            return text_secondary
-        }
+        return if (isSystemInDarkMode) text_secondaryDark else text_secondary
     }
     fun getButton(isSystemInDarkMode:Boolean): Color {
-        if (isSystemInDarkMode){
-            return buttonDark
-        }else{
-            return button
-        }
+        return if (isSystemInDarkMode) buttonDark else button
     }
     fun getButtonSecondary(isSystemInDarkMode:Boolean): Color {
-        if (isSystemInDarkMode){
-            return button_secondaryDark
-        }else{
-            return button_secondary
-        }
+        return if (isSystemInDarkMode) button_secondaryDark else button_secondary
     }
     fun getDrawableMenu(isSystemInDarkMode:Boolean): Color {
-        if (isSystemInDarkMode){
-            return drawable_menuDark
-        }else{
-            return drawable_menu
-        }
+        return if (isSystemInDarkMode) drawable_menuDark else drawable_menu
     }
     fun getDrawableBar(isSystemInDarkMode:Boolean): Color {
-        if (isSystemInDarkMode){
-            return drawable_barDark
-        }else{
-            return drawable_bar
-        }
+        return if (isSystemInDarkMode) drawable_barDark else drawable_bar
     }
 
-    fun getPurple(isSystemInDarkMode:Boolean): Color {
-        if (isSystemInDarkMode){
-            return purple
-        }else{
-            return purpleDark
-        }
+    fun getPurple(isSystemInDarkMode:Boolean): Color{
+        return if (isSystemInDarkMode) purpleDark else purple
+    }
+
+    fun getGreen(isSystemInDarkMode: Boolean): Color{
+        return if (isSystemInDarkMode) greenDark else green
     }
 
 }
