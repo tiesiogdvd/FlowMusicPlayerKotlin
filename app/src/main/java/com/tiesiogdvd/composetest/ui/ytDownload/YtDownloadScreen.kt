@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,7 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,8 +65,6 @@ fun YtDownloadScreen(viewModel: YtDownloadViewModel = hiltViewModel()) {
                             when(it.name){
                                 "Download selected" -> viewModel.onDownloadSelected()
                             }
-                            println(it.name)
-                            println(selectionListSize)
                         }, onCheckChange = {viewModel.toggleSelectAll()}, noOfSelected = selectionListSize, totalSize = totalSize)
                 }
             }
@@ -84,49 +83,9 @@ fun YtDownloadScreen(viewModel: YtDownloadViewModel = hiltViewModel()) {
                 ) {
 
 
-                    Text("YT Downloader", fontSize = 45.sp, modifier = Modifier.padding(bottom = 15.dp))
-                    Text("Enter song or playlist link", fontSize = 22.sp, modifier = Modifier.padding(bottom = 3.dp))
+                    Text("YT Download", fontSize = 45.sp, modifier = Modifier.padding(bottom = 5.dp))
 
-                    TextField(
-                        value = text,
-                        enabled = true,
-                        singleLine = true,
-                        onValueChange = { newText ->
-                            viewModel.onInputChanged(newText)
-                            text = newText
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .offset(y = 3.dp)
-                            .padding(end = 10.dp),
-                        textStyle = MaterialTheme.typography.body1.copy(
-                            fontSize = 20.sp,
-                            color = GetThemeColor.getText(isSystemInDarkTheme())
-                        )
-                    )
 
-                    Surface(shape = RoundedCornerShape(30.dp),
-                        color = GetThemeColor.getButton(isSystemInDarkTheme()),
-                        modifier = Modifier
-                            .height(50.dp)
-                            .padding(top = 15.dp)
-                            .padding(end = 10.dp)
-                            .fillMaxWidth()
-                            .clickable { viewModel.loadSongsFromLink() }) {
-                        Box(
-                            contentAlignment = Alignment.CenterStart,
-                        ) {
-                            Text(
-                                text = "Load songs",
-                                fontSize = 15.sp,
-                                color = GetThemeColor.getText(isSystemInDarkTheme()),
-                                modifier = Modifier
-                                    .padding(start = 10.dp, bottom = 1.dp)
-                                    .height(50.dp)
-                                    .wrapContentSize()
-                            )
-                        }
-                    }
                     DownloadableList()
                 }
 
@@ -144,13 +103,88 @@ fun YtDownloadScreen(viewModel: YtDownloadViewModel = hiltViewModel()) {
 fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
     var downloadMap = viewModel.itemListFlow.collectAsState()
     val isSelectionBarVisible = viewModel.isSelectionBarVisible.collectAsState().value
+    val loading = viewModel.loading.collectAsState().value
+    var text by remember { mutableStateOf("") }
+
     BackHandler(onBack = {
         if(isSelectionBarVisible){
             viewModel.toggleSelectionBar(false)
         }
     }, enabled = true)
 
-    LazyColumn {
+    LazyColumn(modifier = Modifier.fillMaxHeight()) {
+
+        item{
+
+            Text("Enter song or playlist link", fontSize = 17.sp, modifier = Modifier.padding(bottom = 7.dp))
+
+            Row(modifier = Modifier.padding(bottom = 5.dp)) {
+                Surface(modifier = Modifier
+                    .height(25.dp)
+                    .padding(end = 5.dp),
+                    shape = RoundedCornerShape(30.dp),
+                    color = GetThemeColor.getButton(isSystemInDarkTheme())) {
+
+                    BasicTextField(
+                        value = text,
+                        enabled = true,
+                        singleLine = true,
+                        onValueChange = { newText ->
+                            viewModel.onInputChanged(newText)
+                            text = newText },
+                        modifier = Modifier
+                            .fillMaxWidth(0.6f)
+                            .fillMaxHeight()
+                            .offset(y = 3.dp)
+                            .padding(start = 10.dp),
+                        textStyle = MaterialTheme.typography.body1.copy(fontSize = 15.sp, textAlign = TextAlign.Start,color = GetThemeColor.getText(isSystemInDarkTheme())))
+                }
+
+                Surface(shape = RoundedCornerShape(30.dp),
+                    color = GetThemeColor.getButton(isSystemInDarkTheme()),
+                    modifier = Modifier
+                        .height(25.dp)
+                        .padding(end = 10.dp)
+                        .clickable { viewModel.loadSongsFromLink() }) {
+                    Box(
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Text(
+                            text = "Load songs",
+                            fontSize = 15.sp,
+                            color = GetThemeColor.getText(isSystemInDarkTheme()),
+                            modifier = Modifier
+                                .padding(start = 10.dp, bottom = 1.dp, end = 10.dp)
+                                .height(50.dp)
+                                .wrapContentSize()
+                        )
+                    }
+                }
+            }
+
+            val animatedOpacityLoading = remember { Animatable(0f) }
+            LaunchedEffect(loading) {
+                launch {
+                    animatedOpacityLoading.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(durationMillis = 300)
+                    )
+                }
+            }
+
+            if(loading && downloadMap.value.size==0){
+                CircularProgressIndicator(modifier = Modifier
+                    .alpha(animatedOpacityLoading.value)
+                    .fillMaxWidth()
+                    .fillMaxHeight(), strokeWidth = 5.dp, color = GetThemeColor.getPurple(
+                    isSystemInDarkTheme()))
+            }
+
+
+        }
+
+
+
         items(downloadMap.value.toList()) { (key, item) ->
             val animatedOpacity = remember { Animatable(0f) }
             LaunchedEffect(downloadMap) {
@@ -169,6 +203,11 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
                         println("hahahah")
                         if (isSelectionBarVisible) {
                             viewModel.toggleSelection(key)
+                        } else {
+                            if (item.downloadState.value == DownloadState.SELECTION) {
+                                viewModel.toggleSelectionBar(true)
+                                viewModel.toggleSelection(key)
+                            }
                         }
                     },
                     onLongClick = {
