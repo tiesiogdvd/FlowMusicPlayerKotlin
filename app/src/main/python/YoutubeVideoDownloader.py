@@ -59,7 +59,7 @@ def getInfo(url: str, callback):
 
     def postHook(info: dict):
         #print(info.keys())
-        print(info['info_dict'].keys())
+        #print(info['info_dict'].keys())
 
         if info['status'] == 'finished' and info['postprocessor'] == 'MoveFiles':
             videosInfo.append(dictFilter(info['info_dict']))
@@ -84,7 +84,11 @@ def getInfo(url: str, callback):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.extract_info(url)
 
+    global videosInfo
+
     print(videosInfo)
+
+    videosInfo = list()
 
 def downloadVideo(url: str, ffmpegExecutable: str, callback):
     print(os.environ["HOME"])
@@ -153,8 +157,6 @@ def downloadVideo(url: str, ffmpegExecutable: str, callback):
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.extract_info(url)
-
-
 
     tagVideos(videosInfo)
 
