@@ -81,11 +81,7 @@ fun YtDownloadScreen(viewModel: YtDownloadViewModel = hiltViewModel()) {
                         .fillMaxWidth()
                         .padding(top = 25.dp, start = 25.dp, end = 20.dp)
                 ) {
-
-
                     Text("YT Download", fontSize = 45.sp, modifier = Modifier.padding(bottom = 5.dp))
-
-
                     DownloadableList()
                 }
 
@@ -118,7 +114,7 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
 
             Text("Enter song or playlist link", fontSize = 17.sp, modifier = Modifier.padding(bottom = 7.dp))
 
-            Row(modifier = Modifier.padding(bottom = 5.dp)) {
+            Row(modifier = Modifier.padding(bottom = 5.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 Surface(modifier = Modifier
                     .height(25.dp)
                     .padding(end = 5.dp),
@@ -144,7 +140,6 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
                     color = GetThemeColor.getButton(isSystemInDarkTheme()),
                     modifier = Modifier
                         .height(25.dp)
-                        .padding(end = 10.dp)
                         .clickable { viewModel.loadSongsFromLink() }) {
                     Box(
                         contentAlignment = Alignment.CenterStart,
@@ -167,7 +162,7 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
                 launch {
                     animatedOpacityLoading.animateTo(
                         targetValue = 1f,
-                        animationSpec = tween(durationMillis = 300)
+                        animationSpec = tween(durationMillis = 1000)
                     )
                 }
             }
@@ -176,7 +171,7 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
                 CircularProgressIndicator(modifier = Modifier
                     .alpha(animatedOpacityLoading.value)
                     .fillMaxWidth()
-                    .fillMaxHeight(), strokeWidth = 5.dp, color = GetThemeColor.getPurple(
+                    .fillMaxHeight(), strokeWidth = 15.dp, color = GetThemeColor.getPurple(
                     isSystemInDarkTheme()))
             }
 
@@ -278,7 +273,6 @@ fun DownloadableItemTest(
                 shape = RoundedCornerShape(30.dp)) {
                 Row(modifier = Modifier
                     .padding(start = 15.dp)
-
                     .align(Alignment.CenterVertically)
                     .fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Column(modifier = Modifier
