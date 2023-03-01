@@ -49,6 +49,8 @@ import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.debugInspectorInfo
 import com.tiesiogdvd.composetest.ui.addToPlaylistDialog.AddToPlaylistDialog
+import com.tiesiogdvd.composetest.ui.header.Header
+import com.tiesiogdvd.composetest.ui.header.HeaderOptions
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionBarComposable
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionBarList
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionType
@@ -68,11 +70,32 @@ import kotlin.math.min
 fun LibraryPlaylist(navigator: DestinationsNavigator, playlist: Playlist, viewModel: LibraryPlaylistViewModel = hiltViewModel()) {
     FlowPlayerTheme {
         val isSelectionBarVisible = viewModel.isSelectionBarVisible.collectAsState().value
-        val totalSize = viewModel.playlistFlow.collectAsState(initial = emptyList()).value.size
+        val totalSize = viewModel.songs?.size?:0
         val selectionListSize = viewModel.selection.collectAsState().value
 
         viewModel.setSource(playlist.id)
         println("SOURCE PLAYLIST ID ${playlist.id}")
+
+        if(viewModel.isSortDialogShown){
+            sortOrderComposable(onDismiss = {
+                viewModel.dismissSortDialog()
+            },
+                onSongSortSelected = {
+                    viewModel.updateSongSortOrder(it)
+                },
+                onSortTypeSelected = {
+                    viewModel.updateSortOrder(it)
+                },
+                songSortOrder = viewModel.songSortOrder.collectAsState().value,
+                sortOrder = viewModel.sortOrder.collectAsState().value
+            )
+        }
+
+        if(viewModel.isPlaylistsDialogShown){
+            AddToPlaylistDialog(onDismiss = {
+                viewModel.dismissPlaylistsDialog()
+            }, songList = viewModel.selectionListFlow)}
+
 
         Scaffold(bottomBar = {
             AnimatedVisibility(
@@ -85,8 +108,7 @@ fun LibraryPlaylist(navigator: DestinationsNavigator, playlist: Playlist, viewMo
                         selectionType = when(playlist.playlistName){
                         "All Songs"->SelectionType.ALL_SONGS
                         "Favorites"->SelectionType.FAVORITES
-                        else -> SelectionType.PLAYLIST
-                       },
+                        else -> SelectionType.PLAYLIST },
                         onItemClick = {
                             when(it.name){
                                 "Remove from playlist" -> viewModel.removeSongs()
@@ -96,13 +118,7 @@ fun LibraryPlaylist(navigator: DestinationsNavigator, playlist: Playlist, viewMo
                                 else -> println("haha")
 
                             }
-
-
-                        println(it.name)
-                        println(selectionListSize)
-                    }, onCheckChange = {
-
-                    }, noOfSelected = selectionListSize, totalSize = totalSize)
+                    }, onCheckChange = {viewModel.toggleSelectAll()}, noOfSelected = selectionListSize, totalSize = totalSize)
                 }
             }
 
@@ -128,178 +144,6 @@ fun LibraryPlaylist(navigator: DestinationsNavigator, playlist: Playlist, viewMo
 
 
 
-
-@Composable
-fun SongsHeader(playlist: Playlist, viewModel: LibraryPlaylistViewModel = hiltViewModel()){
-    //var bitmapSource = viewModel.playlist.collectAsState(initial = null)
-    //var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
-    //println("GETTING BITMAP ${bitmapSource.value?.bitmapSource}")
-    var bitmap = viewModel.bitmap.collectAsState().value
-    LaunchedEffect(playlist) {
-        withContext(Dispatchers.IO) {
-
-           // bitmap = viewModel.getPlaylistBitmap(bitmapSource.value?.bitmapSource, playlist)
-        }
-    }
-
-    FlowPlayerTheme {
-        Surface(
-            modifier = Modifier
-                .fillMaxSize(),
-            color = GetThemeColor.getBackground(isSystemInDarkTheme())
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-
-
-                Box(modifier = Modifier.height(250.dp)) {
-                    if (bitmap != null) {
-                        Image(
-                            bitmap = bitmap,
-                            contentDescription = "desc",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxSize(),
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(id = R.drawable.img_bg_6),
-                            contentDescription = "desc",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxSize(),
-                        )
-                    }
-
-                    Surface(color = Color.Transparent,modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                0F to Color.Transparent,
-                                0.5F to GetThemeColor
-                                    .getBackground(isSystemInDarkTheme())
-                                    .copy(alpha = 0.4F),
-                                1F to GetThemeColor
-                                    .getBackground(isSystemInDarkTheme())
-                                    .copy(alpha = 1F)
-                            )
-                        )
-                    ){
-                    }
-
-                    Column(modifier = Modifier
-                        .padding(start = 25.dp, bottom = 40.dp)
-                        .align(Alignment.BottomStart)) {
-                        Text(playlist.playlistName, fontSize = 40.sp)
-                    }
-                }
-
-              //  SongsList(playlist = playlist)
-            }
-        }
-        if(viewModel.isSortDialogShown){
-            sortOrderComposable(onDismiss = {
-                viewModel.dismissSortDialog()
-            },
-            onSongSortSelected = {
-                viewModel.updateSongSortOrder(it)
-            },
-            onSortTypeSelected = {
-                viewModel.updateSortOrder(it)
-            },
-                songSortOrder = viewModel.songSortOrder.collectAsState().value,
-                sortOrder = viewModel.sortOrder.collectAsState().value
-            )
-        }
-
-        if(viewModel.isPlaylistsDialogShown){
-            AddToPlaylistDialog(onDismiss = {
-                viewModel.dismissPlaylistsDialog()
-            }, songList = viewModel.selectionListFlow)}
-    }
-}
-
-@Composable
-fun HeaderOptions(
-    viewModel: LibraryPlaylistViewModel
-){
-        Row(modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 25.dp), verticalAlignment = Alignment.CenterVertically){
-            Surface(modifier = Modifier.padding(end = 15.dp), shape = RoundedCornerShape(30.dp), color = GetThemeColor.getButton(isSystemInDarkTheme())) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_action_sort),
-                    contentDescription = "icon",
-                    modifier = Modifier
-                        .height(25.dp)
-                        .width(25.dp)
-                        .align(Alignment.CenterVertically)
-                        .clickable { viewModel.openSortDialog() }
-                        .offset(y = 3.dp),
-                    tint = GetThemeColor.getDrawableBar(isSystemInDarkTheme())
-                )
-            }
-
-            Surface(modifier = Modifier, shape = RoundedCornerShape(30.dp), color = GetThemeColor.getButton(isSystemInDarkTheme())) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_action_mix),
-                    contentDescription = "icon",
-                    modifier = Modifier
-
-                        .height(25.dp)
-                        .width(25.dp)
-                        .align(Alignment.CenterVertically)
-                        .clickable {}
-                        .offset(x = 1.dp),
-                    tint = GetThemeColor.getDrawableBar(isSystemInDarkTheme())
-                )
-            }
-
-            var text by remember { mutableStateOf("") }
-            Surface(modifier = Modifier
-                .weight(8f)
-                .offset(x = 15.dp)
-                .height(25.dp), shape = RoundedCornerShape(30.dp), color = GetThemeColor.getButton(isSystemInDarkTheme())) {
-                BasicTextField(value = text,
-                    enabled = true,
-                    singleLine = true,
-                    onValueChange = { newText ->
-                        viewModel.onTextFieldChanged(newText)
-                        text = newText},
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .offset(y = 3.dp)
-                        .align(Alignment.CenterVertically)
-                        .padding(start = 10.dp),
-                    textStyle = MaterialTheme.typography.body1.copy(fontSize = 12.sp, color = GetThemeColor.getText(isSystemInDarkTheme())))
-            }
-
-
-
-
-
-            Surface(modifier = Modifier
-                .padding(end = 20.dp)
-                .size(40.dp), shape = RoundedCornerShape(30.dp), color = GetThemeColor.getPurple(isSystemInDarkTheme())) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_action_play),
-                    contentDescription = "icon",
-                    modifier = Modifier
-                        .height(20.dp)
-                        .width(20.dp)
-                        .align(Alignment.CenterVertically)
-                        .scale(0.7f)
-                        .clickable {},
-                    tint = GetThemeColor.getDrawableBar(isSystemInDarkTheme())
-                )
-            }
-        }
-
-}
-
-
 @RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun SongsList(
@@ -320,11 +164,14 @@ fun SongsList(
         .wrapContentHeight()
         /*.recomposeHighlighter()*/){
         item {
-            SongsHeader(playlist = playlist)
+            Header(bitmapSource = viewModel.bitmap, headerName = playlist.playlistName)
         }
 
         stickyHeader {
-            HeaderOptions(viewModel)
+            HeaderOptions(
+                onOpenSortDialog = { viewModel.openSortDialog() },
+                text = viewModel.searchQuery
+            )
         }
 
 
@@ -363,7 +210,6 @@ fun SongsList(
                 .animateItemPlacement())
             {
                 SongItem(playlistSongs.get(index), isSelected = isSelected)
-
             }
         }
 
@@ -400,8 +246,6 @@ fun SongItem(
         surfaceColor = animatedColor
     }
 
-
-
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -433,14 +277,12 @@ fun SongItem(
             Spacer(modifier = Modifier
                 .size(30.dp)
                 .align(Alignment.CenterVertically))
-
             Surface(
                 modifier = Modifier
                     .align(Alignment.CenterVertically)
                     .height(50.dp)
                     .fillMaxWidth(),
                 color = surfaceColor,
-                //color = GetThemeColor.getButton(isSystemInDarkTheme()),
                 shape = RoundedCornerShape(30.dp)) {
                 Row(modifier = Modifier
                     .padding(start = 15.dp)
