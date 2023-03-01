@@ -30,8 +30,10 @@ enum class SortOrder(val sortOrderText: String){
     Z_A ("Z-A")
 }
 
-enum class PlaylistSortOrder{
-    BY_NAME, BY_DATE_CREATED, BY_DATE_UPDATED
+enum class PlaylistSortOrder(val playlistSortOrderText: String){
+    BY_NAME("Name"),
+    BY_DATE_CREATED("Date Created"),
+    BY_DATE_UPDATED("Date Updated")
 }
 
 enum class RepeatMode{
