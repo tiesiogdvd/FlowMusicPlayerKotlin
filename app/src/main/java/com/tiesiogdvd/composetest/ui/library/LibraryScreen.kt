@@ -24,6 +24,8 @@ import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootNavGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import com.tiesiogdvd.composetest.ui.destinations.LibraryPlaylistDestination
+import com.tiesiogdvd.composetest.ui.destinations.LibraryPlaylistsScreenDestination
+import com.tiesiogdvd.composetest.ui.libraryPlaylists.LibraryPlaylistsScreen
 import com.tiesiogdvd.composetest.ui.theme.FlowPlayerTheme
 import com.tiesiogdvd.composetest.ui.theme.GetThemeColor
 import com.tiesiogdvd.playlistssongstest.data.PlaylistWithSongs
@@ -49,7 +51,7 @@ fun Library(navigator: DestinationsNavigator, viewModel: LibraryViewModel = hilt
             Text("Recent Playlists", fontSize = 22.sp, modifier = Modifier.padding(bottom = 3.dp))
             PlaylistList(navigator = navigator)
             menuItem(text = "All Songs", onClick = { navigator.navigate(LibraryPlaylistDestination(viewModel.playlistAllSongs))})
-            menuItem(text = "Playlists", onClick = {})
+            menuItem(text = "Playlists", onClick = { navigator.navigate(LibraryPlaylistsScreenDestination)})
             menuItem(text = "Favorites", onClick = { navigator.navigate(LibraryPlaylistDestination(viewModel.playlistAllSongs))})
             menuItem(text = "Folders", onClick = {})
             menuItem(text = "Storage", onClick = {})
