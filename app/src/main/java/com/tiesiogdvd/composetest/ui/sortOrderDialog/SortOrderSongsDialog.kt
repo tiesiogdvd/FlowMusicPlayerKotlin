@@ -22,7 +22,7 @@ import com.tiesiogdvd.composetest.data.SortOrder
 import com.tiesiogdvd.composetest.ui.theme.GetThemeColor
 
 @Composable
-fun sortOrderComposable(
+fun SortOrderSongsDialog(
     songSortOrder: SongSortOrder,
     sortOrder: SortOrder,
     onDismiss: () -> Unit,
