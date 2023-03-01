@@ -54,6 +54,8 @@ class LibraryPlaylistViewModel @Inject constructor(
 
     val selectionListFlow = MutableStateFlow(HashMap<Int,Song>())
 
+    val textField = MutableStateFlow("")
+
     val playlistFlow = combine(source,searchQuery,songSortOrder,sortOrder){
             playlistId,query, sortOrderParameters, sortOrder -> TaskFilter(playlistId,query, sortOrderParameters, sortOrder)
     }.flatMapLatest {
@@ -63,6 +65,10 @@ class LibraryPlaylistViewModel @Inject constructor(
         }else{
             emptyFlow()
         }
+    }
+
+    val fullPlaylistFlow = source.flatMapLatest {
+        musicDao.getPlaylistSongs(source.value,"", songSortOrder = songSortOrder.value, showHidden = false, sortOrder = sortOrder.value)
     }
 
     val playlist = source.flatMapLatest {
@@ -75,11 +81,8 @@ class LibraryPlaylistViewModel @Inject constructor(
 
     var bitmap = MutableStateFlow<ImageBitmap?>(null)
 
-    val bmap = playlist.asLiveData().observeForever({
-        val bm = it?.bitmapSource
-        bitmap.update { MusicDataMetadata.getBitmap(bm) }
+    var songs: List<Song>? = null
 
-    })
 
     var isSortDialogShown by mutableStateOf(false)
         private set
@@ -101,6 +104,19 @@ class LibraryPlaylistViewModel @Inject constructor(
         isPlaylistsDialogShown = false
     }
 
+
+    init {
+        fullPlaylistFlow.asLiveData().observeForever {
+            songs = it
+        }
+
+        playlist.asLiveData().observeForever({
+            val bm = it?.bitmapSource
+            bitmap.update {
+                MusicDataMetadata.getBitmap(bm)
+            }
+        })
+    }
 
     fun removeSongs(){
         val songsArrayList:ArrayList<Song> = ArrayList()
@@ -159,13 +175,6 @@ class LibraryPlaylistViewModel @Inject constructor(
         this.songSortOrder.update { songSortOrder }
     }
 
-
-    fun addPlaylist(playlist: Playlist){
-        viewModelScope.launch {
-            println("Adding Playlist")
-            musicDao.insertPlaylist(playlist = playlist)
-        }
-    }
     fun onTextFieldChanged(string:String){
         searchQuery.update { string }
     }
@@ -176,10 +185,7 @@ class LibraryPlaylistViewModel @Inject constructor(
         }
     }
 
-
     fun toggleSelection(song:Song){
-       // selectionList.set(song.id,song)
-
         if(selectionListFlow.value.get(song.id)!=null){
             selectionListFlow.value.remove(song.id)
             selection.update { selectionListFlow.value.size }
@@ -189,9 +195,6 @@ class LibraryPlaylistViewModel @Inject constructor(
         }
     }
 
-
-
-
     suspend fun getPlaylistBitmap(playlist: Playlist): ImageBitmap?{
         var bitmap: ImageBitmap? = null
         if (playlist.bitmapSource!=null){
@@ -199,19 +202,6 @@ class LibraryPlaylistViewModel @Inject constructor(
                 bitmap = MusicDataMetadata.getBitmap(playlist.bitmapSource)
             }else{
                 musicDao.setPlaylistBitmapSource(playlist.id,null)
-            }
-        }
-        return bitmap
-    }
-
-    suspend fun getPlaylistBitmap(imageSource:String?, playlist: Playlist):ImageBitmap?{
-        var bitmap: ImageBitmap? = null
-        if(imageSource!=null){
-            if(musicDao.getSong(playlistId = playlist.id, songPath = imageSource)!=null){
-                bitmap = MusicDataMetadata.getBitmap(imageSource)
-            }else{
-                musicDao.setPlaylistBitmapSource(playlist.id,null)
-                getPlaylistBitmap(playlist)
             }
         }
         return bitmap
@@ -230,4 +220,18 @@ class LibraryPlaylistViewModel @Inject constructor(
             }
         }
     }
+
+    fun toggleSelectAll(){
+        val size = songs?.size
+        if(songs!=null && selection.value!=size){
+            for (song in songs!!){
+                selectionListFlow.value.put(song.id, song)
+            }
+        }else{
+            selectionListFlow.value.clear()
+        }
+        selection.update { selectionListFlow.value.size }
+    }
+
+
 }
