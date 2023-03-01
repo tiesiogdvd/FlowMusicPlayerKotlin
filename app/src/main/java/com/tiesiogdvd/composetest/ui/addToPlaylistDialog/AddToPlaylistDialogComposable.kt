@@ -25,29 +25,7 @@ import com.tiesiogdvd.playlistssongstest.data.Playlist
 import com.tiesiogdvd.playlistssongstest.data.Song
 import kotlinx.coroutines.flow.MutableStateFlow
 
-@Composable
-fun PlaylistItem(
-    playlist: Playlist,
-    onToggle: () -> Unit,
-    isSelected: Boolean,
-){
-    Column(modifier = Modifier
-        .wrapContentHeight()
-        .fillMaxWidth(), verticalArrangement = Arrangement.Center) {
-        Surface(shape = RoundedCornerShape(10.dp), modifier = Modifier.padding(bottom = 5.dp), color = GetThemeColor.getBackground(isSystemInDarkTheme()).copy(0.5f)) {
-            Row(verticalAlignment = CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text(text = playlist.playlistName, textAlign = TextAlign.Center, modifier = Modifier.padding(start = 5.dp))
-                Checkbox(checked = isSelected , onCheckedChange = {onToggle()}, modifier = Modifier
-                    .align(CenterVertically)
-                    .scale(0.7f)
-                    .padding(end = 2.dp))
-            }
-        }
 
-
-    }
-
-}
 
 
 @Composable
@@ -81,40 +59,68 @@ fun AddToPlaylistDialog(
                                 .size(35.dp)
                                 .align(CenterVertically)
                                 .padding(end = 2.dp))
-                        }
-
                     }
 
-
-
-                    if(isItemEnabled){
-                        AddPlaylistDialog(
-                            onDismiss = { viewModel.toggleAddPlaylistDialog()},
-                            onRequestAddPlaylist = {
-                                if(viewModel.playlistExists(it,playlists)){
-                                    println("EXISTS")
-                                }else{
-                                    viewModel.addPlaylist(it,songs)
-                                    println("SIZE OF " + songs.size)
-                                    viewModel.isAddPlaylistDialogEnabled.value = false
-                                }
-
-                            })
-                    }
-
-                    LazyColumn(content = {
-                        itemsIndexed(items = playlists, key = {index, playlist -> playlist}){
-                            index, playlist ->
-                            var isSelected by remember{ mutableStateOf(false)}
-                            LaunchedEffect(index){
-                                if(songs.size==1){
-                                    isSelected = viewModel.isSongInPlaylist(playlist.playlist, songs.values.first())
-                                }
-                            }
-                            PlaylistItem(playlist = playlist.playlist, onToggle = { println("test") }, isSelected = isSelected)
-                        }
-                    })
                 }
+
+
+
+                if(isItemEnabled){
+                    AddPlaylistDialog(
+                        onDismiss = { viewModel.toggleAddPlaylistDialog()},
+                        onRequestAddPlaylist = {
+                            if(viewModel.playlistExists(it,playlists)){
+                                println("EXISTS")
+                            }else{
+                                viewModel.addPlaylist(it,songs)
+                                println("SIZE OF " + songs.size)
+                                viewModel.isAddPlaylistDialogEnabled.value = false
+                            }
+
+                        })
+                }
+
+
+                LazyColumn(content = {
+                    itemsIndexed(items = playlists, key = {index, playlist -> playlist}){
+                        index, playlist ->
+                        var isSelected by remember{ mutableStateOf(false)}
+                        LaunchedEffect(index){
+                            if(songs.size==1){
+                                isSelected = viewModel.isSongInPlaylist(playlist.playlist, songs.values.first())
+                            }
+                        }
+                        PlaylistItem(playlist = playlist.playlist, onToggle = { viewModel.toggleAddStatus(playlistId = playlist.playlist.id, songs, isSelected) }, isSelected = isSelected)
+                    }
+                })
             }
         }
     }
+}
+
+
+
+
+@Composable
+fun PlaylistItem(
+    playlist: Playlist,
+    onToggle: () -> Unit,
+    isSelected: Boolean,
+){
+    Column(modifier = Modifier
+        .wrapContentHeight()
+        .fillMaxWidth(), verticalArrangement = Arrangement.Center) {
+        Surface(shape = RoundedCornerShape(10.dp), modifier = Modifier.padding(bottom = 5.dp).clickable { onToggle() }, color = GetThemeColor.getBackground(isSystemInDarkTheme()).copy(0.5f)) {
+            Row(verticalAlignment = CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Text(text = playlist.playlistName, textAlign = TextAlign.Center, modifier = Modifier.padding(start = 5.dp))
+                Checkbox(checked = isSelected, enabled = true , onCheckedChange = {onToggle()}, modifier = Modifier
+                    .align(CenterVertically)
+                    .scale(0.7f)
+                    .padding(end = 2.dp))
+            }
+        }
+
+
+    }
+
+}
