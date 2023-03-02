@@ -45,4 +45,13 @@ object GetThemeColor {
         return if (isSystemInDarkMode) greenDark else green
     }
 
+    fun getError(isSystemInDarkMode: Boolean): Color{
+        return if (isSystemInDarkMode) errorDark else error
+    }
+
+    fun getLoading(isSystemInDarkMode: Boolean): Color{
+        return if (isSystemInDarkMode) loadingDark else loading
+    }
+
+
 }
