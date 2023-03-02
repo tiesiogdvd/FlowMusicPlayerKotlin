@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,13 +34,17 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.tiesiogdvd.composetest.R
+import com.tiesiogdvd.composetest.ui.error.ErrorText
+import com.tiesiogdvd.composetest.ui.error.ErrorType
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionBarComposable
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionBarList
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionType
 import com.tiesiogdvd.composetest.ui.theme.FlowPlayerTheme
 import com.tiesiogdvd.composetest.ui.theme.GetThemeColor
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.update
 
 
 @Composable
@@ -98,6 +103,7 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
     val downloadMap = viewModel.itemListFlow.collectAsState()
     val isSelectionBarVisible = viewModel.isSelectionBarVisible.collectAsState().value
     val loading = viewModel.loading.collectAsState().value
+    val error = viewModel.error.collectAsState().value!=ErrorType.NO_ERROR
     var text by remember { mutableStateOf("") }
 
     BackHandler(onBack = {
@@ -112,10 +118,11 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
 
             Text("Enter song or playlist link", fontSize = 17.sp, modifier = Modifier.padding(bottom = 7.dp))
 
-            Row(modifier = Modifier.padding(bottom = 5.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(modifier = Modifier
+                .padding(bottom = 5.dp)
+                .fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Surface(modifier = Modifier
                     .height(25.dp)
-                    .width(200.dp)
                     .padding(end = 5.dp),
                     shape = RoundedCornerShape(30.dp),
                     color = GetThemeColor.getButton(isSystemInDarkTheme())) {
@@ -139,7 +146,12 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
                     color = GetThemeColor.getButton(isSystemInDarkTheme()),
                     modifier = Modifier
                         .height(25.dp)
-                        .clickable { viewModel.loadSongsFromLink() }) {
+                        .padding(end = 5.dp)
+                        .clickable {
+                            if (!loading) {
+                                viewModel.loadSongsFromLink()
+                            }
+                        }) {
                     Box(
                         contentAlignment = Alignment.CenterStart,
                     ) {
@@ -176,8 +188,15 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
             }
 
 
-        }
+            AnimatedVisibility(visible = error) {
+                ErrorText(viewModel.error.collectAsState().value, onClickClose = {viewModel.error.update { ErrorType.NO_ERROR }})
+                LaunchedEffect(error){
+                    delay(1000)
+                    viewModel.error.update { ErrorType.NO_ERROR }
+                }
+            }
 
+        }
 
 
         items(downloadMap.value.toList()) { (key, item) ->
@@ -244,25 +263,29 @@ fun DownloadableItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(end = 10.dp)
             .padding(vertical = 5.dp),
         color = Color.Transparent
     ){
         Row(
-            modifier = Modifier,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            Surface(shape = RoundedCornerShape(30.dp), modifier = Modifier.align(Alignment.CenterVertically), color = GetThemeColor.getButton(isSystemInDarkTheme())) {
+
+
+            Surface(shape = RoundedCornerShape(30.dp), modifier = Modifier
+                .align(Alignment.CenterVertically)
+                .height(55.dp)
+                .padding(end = 30.dp), color = GetThemeColor.getButton(isSystemInDarkTheme())) {
                 if(imageSource!=null){
-                    AsyncImage(model = ImageRequest.Builder(LocalContext.current).data(imageSource).crossfade(true).build(), contentDescription = "Downloadable Image")
+                    AsyncImage(model = ImageRequest.Builder(LocalContext.current).data(imageSource).crossfade(true).build(), modifier = Modifier.width(97.dp), contentDescription = "Downloadable Image")
+                }else{
+                    Image(painterResource(id = R.drawable.ic_group_23_image_6), contentDescription = "emptyIcon")
                 }
+
                 if (downloadType != DownloadState.FINISHED && downloadType!=DownloadState.SELECTION) {
-                    LinearProgressIndicator(modifier = Modifier.width(100.dp))
+                    LinearProgressIndicator(modifier = Modifier.width(97.dp), color = GetThemeColor.getLoading(isSystemInDarkTheme()))
                 }
-                
             }
-            Spacer(modifier = Modifier
-                .size(30.dp)
-                .align(Alignment.CenterVertically))
+
             Surface(
                 modifier = Modifier
                     .align(Alignment.CenterVertically)
