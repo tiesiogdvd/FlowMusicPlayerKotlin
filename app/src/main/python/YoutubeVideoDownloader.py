@@ -75,16 +75,8 @@ def getInfo(url: str, callback):
 
     printListableKeysRecursive(info)
 
-    if info.get('entries') is None:
-        # single video
-        callback(0, info['title'], '', info['thumbnails'][-1]['url'])
-    elif info.get('entries') is not None:
-        # playlist
-       # print(len(info['entries']))
+    callback(info)
 
-        for i in range(len(info['entries'])):
-            if info['entries'][i]['title'] == '[Deleted video]':
-                continue
 
 listableTypes = [dict, list]
 
@@ -131,7 +123,7 @@ def downloadVideo(url: str, ffmpegExecutable: str, callback):
                 writeChapters(info['info_dict']['chapters'],
                             info['info_dict']['filepath'])
 
-            videosInfo.append(dictFilter(info['info_dict']))
+            videosInfo.append(dictFilter(info['info_dict'])) '''
 
     ydl_opts = {
         'quiet': False,

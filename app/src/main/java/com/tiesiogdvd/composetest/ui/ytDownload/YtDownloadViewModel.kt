@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chaquo.python.PyObject
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import com.tiesiogdvd.composetest.ui.bottomNavBar.NavbarController
@@ -92,10 +93,10 @@ class YtDownloadViewModel @Inject constructor(
             println(it)
         }*/
 
-        val ret = youtubeDLModule.callAttr("getInfo", url, ::itemReceivedCallback)
+        val ret = youtubeDLModule.callAttr("getInfo", url, ::itemsReceivedCallback)
     }
 
-    fun itemReceivedCallback(key: Int, name: String, playlist: String?, thumbnail: String){  //key and song name
+    fun itemReceived(key: Int, name: String, playlist: String?, thumbnail: String){  //key and song name
         //item received after entering link
         //Log.d(tag, "$key $name $playlist $thumbnail")
         //aj ze println("$key $name $playlist $thumbnail")
@@ -111,17 +112,94 @@ class YtDownloadViewModel @Inject constructor(
         itemListFlow.update { itemList }
     }
 
-    /*fun itemsReceivedCallback(itemsMap: HashMap<Int,String>){  //key and song name
+    fun itemsReceivedCallback(info: PyObject){  //key and song name
         //items received after entering link
-        println(itemsMap)
 
-        for(song in itemsMap){
-            itemList.put(song.key, DownloadableItem(song.value))
-            itemListFlow.update { itemList }
-            toggleSelectionBar(true)
+        /*
+            Run printListableKeysRecursive(info) in python file to see full structure of info
+
+            info['entries'] does not exist if link is a single video
+
+            The main values of the PyObject are obtained like this:
+                For a single video:
+                    title:      info['title'] (probably can't be null)
+
+                    thumbnails: info['thumbnails'] (last one is highest quality, can be null)
+                    thumbnails are dictionaries too
+                    to get best thumbnail: info['thumbnails'][last]['url']
+
+                For a playlist:
+                    playlist title:   info['title']
+                    title of video i: info['entries'][i]['title']
+
+                    title is [Deleted video] if video is deleted
+                    title is [Private video] if video is private
+
+                    best thumbnail of video i: info['entries'][i]['thumbnails'][last]['url']
+        */
+
+        val infoMap = info.asMap()
+
+        /*infoMap.forEach { (key, value) ->
+            print(key)
+            print(':')
+            if(value != null) {
+                print(value.toString())
+            }
+            println()
+        }*/
+
+        if(infoMap[PyObject.fromJava("entries")] != null) {
+            // info is a playlist
+            println("Got playlist")
+
+            val playlistTitle = infoMap[PyObject.fromJava("title")].toString()
+
+            val entries = infoMap[PyObject.fromJava("entries")]?.asList() ?: return
+
+            var index = 0
+            while(index < entries.size) {
+                val entry = entries[index].asMap()
+
+                addVideoToList(index, playlistTitle, entry)
+
+                index++
+
+                Thread.sleep(10) // prevent freeze
+            }
+        } else {
+            // info is a video
+            println("Got video")
+
+            addVideoToList(0, "", infoMap)
         }
-    }*/
+    }
 
+    fun addVideoToList(key: Int, playlist: String, entry: Map<PyObject?, PyObject?>) {
+        val title = entry[PyObject.fromJava("title")].toString()
+
+        if(title == "[Deleted video]" || title == "[Private video]") {
+            return
+        }
+
+        var thumbnailUrl = ""
+
+        val thumbnails = entry[PyObject.fromJava("thumbnails")]?.asList()
+        if(thumbnails != null) {
+            val thumbnailMap = thumbnails[thumbnails.size-1].asMap()
+            thumbnailUrl = thumbnailMap[PyObject.fromJava("url")].toString()
+        }
+
+        print("thumbnail url is: ")
+        println(thumbnailUrl)
+
+        itemReceived(
+            key = key + 1,
+            name = title,
+            playlist = playlist,
+            thumbnail = thumbnailUrl
+        )
+    }
 
     fun toggleSelection(key:Int){
         println(Environment.getExternalStorageDirectory().absolutePath)
