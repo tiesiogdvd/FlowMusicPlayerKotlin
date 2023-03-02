@@ -31,10 +31,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.Coil
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.tiesiogdvd.composetest.R
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionBarComposable
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionBarList
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionType
@@ -97,7 +95,7 @@ fun YtDownloadScreen(viewModel: YtDownloadViewModel = hiltViewModel()) {
 
 @Composable
 fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
-    var downloadMap = viewModel.itemListFlow.collectAsState()
+    val downloadMap = viewModel.itemListFlow.collectAsState()
     val isSelectionBarVisible = viewModel.isSelectionBarVisible.collectAsState().value
     val loading = viewModel.loading.collectAsState().value
     var text by remember { mutableStateOf("") }
@@ -117,6 +115,7 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
             Row(modifier = Modifier.padding(bottom = 5.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 Surface(modifier = Modifier
                     .height(25.dp)
+                    .width(200.dp)
                     .padding(end = 5.dp),
                     shape = RoundedCornerShape(30.dp),
                     color = GetThemeColor.getButton(isSystemInDarkTheme())) {
@@ -149,8 +148,9 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
                             fontSize = 15.sp,
                             color = GetThemeColor.getText(isSystemInDarkTheme()),
                             modifier = Modifier
-                                .padding(start = 10.dp, bottom = 1.dp, end = 10.dp)
+                                .padding(start = 10.dp, bottom = 1.dp)
                                 .height(50.dp)
+                                .padding(end = 10.dp)
                                 .wrapContentSize()
                         )
                     }
@@ -210,7 +210,7 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
                     })
                 .animateItemPlacement())
             {
-                DownloadableItemTest(songItem = item, item.isSelected, item.downloadState )
+                DownloadableItem(songItem = item, item.isSelected, item.downloadState )
             }
 
         }
@@ -224,13 +224,13 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
 
 @RequiresApi(Build.VERSION_CODES.R)
 @Composable
-fun DownloadableItemTest(
+fun DownloadableItem(
     songItem: DownloadableItem,
     isSelected:MutableStateFlow<Boolean>,
     downloadState: MutableStateFlow<DownloadState>
 ){
-    var selected = isSelected.collectAsState().value
-    var downloadType = downloadState.collectAsState().value
+    val selected = isSelected.collectAsState().value
+    val downloadType = downloadState.collectAsState().value
     val imageSource = songItem.imageSource.collectAsState().value
     val initialColor = if(!selected){GetThemeColor.getButton(isSystemInDarkTheme())}else{GetThemeColor.getPurple(isSystemInDarkTheme())}
     var surfaceColor by remember { mutableStateOf(initialColor) }
