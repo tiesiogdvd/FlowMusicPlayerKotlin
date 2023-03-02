@@ -2,7 +2,6 @@ package com.tiesiogdvd.composetest.ui.ytDownload
 
 import android.app.Application
 import android.os.Environment
-import android.util.Log
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -10,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import com.tiesiogdvd.composetest.ui.bottomNavBar.NavbarController
+import com.tiesiogdvd.composetest.ui.error.ErrorType
 import com.tiesiogdvd.composetest.util.MusicDataMetadata
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
 import com.tiesiogdvd.playlistssongstest.data.Playlist
@@ -55,6 +55,8 @@ class YtDownloadViewModel @Inject constructor(
     val isNavbarVisible = navbarController.navbarEnabled
     val isSelectionBarVisible = MutableStateFlow(false)
 
+    val error = MutableStateFlow(ErrorType.NO_ERROR)
+
     val selection = MutableStateFlow(0)
 
     val loading = MutableStateFlow(false)
@@ -78,7 +80,8 @@ class YtDownloadViewModel @Inject constructor(
         }
 
         val instance = Python.getInstance()
-        val helloModule = instance.getModule("YoutubeVideoDownloader")
+        val youtubeDLModule = instance.getModule("YoutubeVideoDownloader")
+        //youtubeDLModule.put("error_callback", ::errorCallback)
 
         /*println(context.applicationInfo.nativeLibraryDir)
 
@@ -89,7 +92,7 @@ class YtDownloadViewModel @Inject constructor(
             println(it)
         }*/
 
-        val ret = helloModule.callAttr("getInfo", url, ::itemReceivedCallback)
+        val ret = youtubeDLModule.callAttr("getInfo", url, ::itemReceivedCallback)
     }
 
     fun itemReceivedCallback(key: Int, name: String, playlist: String?, thumbnail: String){  //key and song name
@@ -101,9 +104,11 @@ class YtDownloadViewModel @Inject constructor(
         if(loading.value==true){
             toggleLoading(false)
         }
+        if(!isSelectionBarVisible.value){
+            toggleSelectionBar(true)
+        }
         itemList.put(key, DownloadableItem(name = name, imageSource= MutableStateFlow(thumbnail), playlist = playlist))
         itemListFlow.update { itemList }
-        toggleSelectionBar(true)
     }
 
     /*fun itemsReceivedCallback(itemsMap: HashMap<Int,String>){  //key and song name
@@ -183,6 +188,17 @@ class YtDownloadViewModel @Inject constructor(
 
     private suspend fun startDownload(songList: ArrayList<Int>) = withContext(Dispatchers.IO){
 
+    }
+
+
+
+    fun errorCallback(errorType:Int){
+        when(errorType){
+            0 -> error.update { ErrorType.NO_ERROR }
+            1 -> error.update { ErrorType.LINK_NOT_FOUND }
+            2 -> error.update { ErrorType.EMPTY_PLAYLIST }
+            else -> error.update { ErrorType.NO_ERROR }
+        }
     }
 
 
