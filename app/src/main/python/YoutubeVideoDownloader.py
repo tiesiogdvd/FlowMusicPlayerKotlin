@@ -1,15 +1,16 @@
 import yt_dlp
 import os
-import copy
-import json
 
 import Presets
 
-def dictFilter(dictionary: dict, keysToKeep:list):
+
+def dictFilter(dictionary: dict, keysToKeep: list):
     if keysToKeep is None:
-        keysTokeep = ['title', 'playlist_index', 'album',
-                    'artist', 'release_date','playlist',
-                    'filepath', 'id']
+        keysTokeep = [
+            'title', 'playlist_index', 'album',
+            'artist', 'release_date', 'playlist',
+            'filepath', 'id'
+        ]
 
     keys = list(dictionary.keys())
 
@@ -19,20 +20,20 @@ def dictFilter(dictionary: dict, keysToKeep:list):
 
     return dictionary
 
-videosInfo = list()
-saveChapters = False
 
+videosInfo = list()
+
+
+saveChapters = False
 
 
 progress_callback = None
 
+
 def progressHook(info: dict):
     if info['status'] == 'finished':
         # give progress_callback index of the downloaded item (for playlists)
-        try:
-            pass
-        except:
-            pass
+        pass
 
     elif info['status'] == 'downloading':
         print(
@@ -43,7 +44,7 @@ def progressHook(info: dict):
             sep=' | ', end='\n'
         )
 
-"""         progress_callback.invoke(
+        """ progress_callback.invoke(
             int(info['total_bytes']),
             int(info['downloaded_bytes']),
             int(info['speed']),
@@ -97,16 +98,19 @@ def downloadVideo(url: str, ffmpegExecutable: str, callback):
     print(os.environ["HOME"])
     print(ffmpegExecutable)
 
-    callback.invoke(1, 1, 1, 1)
+    callback(1, 1, 1, 1)
 
     global progress_callback
     progress_callback = callback
 
     preset = Presets.audioPreset
 
-    def postHook(info: dict):
-        if info['status'] == 'finished' and info['postprocessor'] == 'MoveFiles':
-            if saveChapters == True and type(info['info_dict']['chapters']) != 'dict' and info['info_dict']['chapters'] != None: 
+    ''' def postHook(info: dict):
+        if info['status'] == 'finished' and
+        info['postprocessor'] == 'MoveFiles':
+            if saveChapters == True and
+             type(info['info_dict']['chapters']) != 'dict' and
+              info['info_dict']['chapters'] != None:
                 writeChapters(info['info_dict']['chapters'],
                             info['info_dict']['filepath'])
 
@@ -115,10 +119,10 @@ def downloadVideo(url: str, ffmpegExecutable: str, callback):
     ydl_opts = {
         'quiet': False,
         'ignoreerrors': True,
-        
+
         'restrictfilenames': True,
 
-        'paths': { 'home': os.environ["HOME"] }, # save in local app storage
+        'paths': {'home': os.environ["HOME"]},  # save in local app storage
 
         'writesubtitles': preset.subtitles,
         'subtitleslangs': preset.subtitlesLanguage,
@@ -129,8 +133,8 @@ def downloadVideo(url: str, ffmpegExecutable: str, callback):
         'format': preset.format,
         'outtmpl': {'default': preset.outputTemplate},
 
-        'postprocessors': [], # post processors can be added later
-        'postprocessor_hooks': [postHook],
+        'postprocessors': [],  # post processors can be added later
+        'postprocessor_hooks': ["""postHook"""],
         'progress_hooks': [progressHook],
 
         'ffmpeg_location': ffmpegExecutable
@@ -151,17 +155,18 @@ def downloadVideo(url: str, ffmpegExecutable: str, callback):
                 'format': 'lrc'
             }
         )
-    
+
     if preset.outputFileType is not None:
         ydl_opts['merge_output_format'] = preset.outputFileType
 
     if preset.archive != '':
-       ydl_opts['download_archive'] = preset.archive
+        ydl_opts['download_archive'] = preset.archive
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.extract_info(url)
 
     tagVideos(videosInfo)
+
 
 def tagVideos(videosInfo):
     pass
