@@ -2,6 +2,7 @@ package com.tiesiogdvd.composetest.ui.ytDownload
 
 import android.app.Application
 import android.os.Environment
+import android.os.Looper
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -62,7 +63,13 @@ class YtDownloadViewModel @Inject constructor(
 
     val loading = MutableStateFlow(false)
 
-    val tag = "YtDownloadViewModel"
+    init {
+        viewModelScope.launch {
+            if(!Python.isStarted()){
+                Python.start(AndroidPlatform(context))
+            }
+        }
+    }
 
     fun loadSongsFromLink(){
         println(input.value)
@@ -76,32 +83,14 @@ class YtDownloadViewModel @Inject constructor(
     }
 
     suspend fun getSongInfo(url: String) = withContext(Dispatchers.IO) {
-        if(!Python.isStarted()){
-            Python.start(AndroidPlatform(context))
-        }
 
         val instance = Python.getInstance()
         val youtubeDLModule = instance.getModule("YoutubeVideoDownloader")
-        //youtubeDLModule.put("error_callback", ::errorCallback)
-
-        /*println(context.applicationInfo.nativeLibraryDir)
-
-        val libraryDir = context.applicationInfo.nativeLibraryDir
-        val ffmpegExecutable = context.applicationInfo.nativeLibraryDir + "/ffmpeg.so"
-
-        File(libraryDir).list()?.forEach {
-            println(it)
-        }*/
-
-        val ret = youtubeDLModule.callAttr("getInfo", url, ::itemsReceivedCallback)
+        youtubeDLModule.callAttr("getInfo", url, ::itemsReceivedCallback)
     }
 
     fun itemReceived(key: Int, name: String, playlist: String?, thumbnail: String){  //key and song name
         //item received after entering link
-        //Log.d(tag, "$key $name $playlist $thumbnail")
-        //aj ze println("$key $name $playlist $thumbnail")
-
-        //println("YO")
         if(loading.value==true){
             toggleLoading(false)
         }
@@ -115,10 +104,25 @@ class YtDownloadViewModel @Inject constructor(
     fun itemsReceivedCallback(info: PyObject){  //key and song name
         //items received after entering link
 
-        /*
-            Run printListableKeysRecursive(info) in python file to see full structure of info
+            /*info object -> {
+               'title',                     playlist title
+               'entries' ->{                playlist songs list  || does not exist if link is a single video
+                    entry -> {              single song
+                        title,              song title
+                        description,
+                        channel...
+                        thumbnails ->{      multiple res thumbnails list
+                            thumbnail ->{
+                                height,
+                                width
+                                url         thumbnail link
+                            }
+                        }
+                    }
+               }
+            }
 
-            info['entries'] does not exist if link is a single video
+            Run printListableKeysRecursive(info) in python file to see full structure of info
 
             The main values of the PyObject are obtained like this:
                 For a single video:
@@ -140,65 +144,57 @@ class YtDownloadViewModel @Inject constructor(
 
         val infoMap = info.asMap()
 
-        /*infoMap.forEach { (key, value) ->
-            print(key)
-            print(':')
-            if(value != null) {
-                print(value.toString())
-            }
-            println()
-        }*/
-
         if(infoMap[PyObject.fromJava("entries")] != null) {
             // info is a playlist
-            println("Got playlist")
-
             val playlistTitle = infoMap[PyObject.fromJava("title")].toString()
-
             val entries = infoMap[PyObject.fromJava("entries")]?.asList() ?: return
-
-            var index = 0
-            while(index < entries.size) {
+            for (index in  0..entries.size-1){
                 val entry = entries[index].asMap()
-
                 addVideoToList(index, playlistTitle, entry)
-
-                index++
-
-                Thread.sleep(10) // prevent freeze
+                //Thread.sleep(1) // prevent freeze
             }
         } else {
-            // info is a video
-            println("Got video")
-
+            // info is a single video
             addVideoToList(0, "", infoMap)
         }
+
+        if(loading.value){
+            toggleLoading(false)
+        }
+        if(!isSelectionBarVisible.value){
+            toggleSelectionBar(true)
+        }
+
+        viewModelScope.launch {
+            updateItemListFlow()
+        }
+
+    }
+
+    suspend fun updateItemListFlow() = withContext(Dispatchers.Main){
+        if(Looper.myLooper() == Looper.getMainLooper()) {
+            println("MAIN THREAD")
+        }else{
+            println("NOT MAIN THREAD")
+        }
+        itemListFlow.update { itemList }
     }
 
     fun addVideoToList(key: Int, playlist: String, entry: Map<PyObject?, PyObject?>) {
         val title = entry[PyObject.fromJava("title")].toString()
-
-        if(title == "[Deleted video]" || title == "[Private video]") {
-            return
-        }
+        if(title == "[Deleted video]" || title == "[Private video]") { return }
 
         var thumbnailUrl = ""
-
         val thumbnails = entry[PyObject.fromJava("thumbnails")]?.asList()
+
         if(thumbnails != null) {
             val thumbnailMap = thumbnails[thumbnails.size-1].asMap()
             thumbnailUrl = thumbnailMap[PyObject.fromJava("url")].toString()
         }
 
-        print("thumbnail url is: ")
-        println(thumbnailUrl)
-
-        itemReceived(
-            key = key + 1,
-            name = title,
-            playlist = playlist,
-            thumbnail = thumbnailUrl
-        )
+        viewModelScope.launch {
+            itemList.put(key, DownloadableItem(name = title, imageSource= MutableStateFlow(thumbnailUrl), playlist = playlist))
+        }
     }
 
     fun toggleSelection(key:Int){
@@ -268,8 +264,6 @@ class YtDownloadViewModel @Inject constructor(
 
     }
 
-
-
     fun errorCallback(errorType:Int){
         when(errorType){
             0 -> error.update { ErrorType.NO_ERROR }
@@ -278,7 +272,6 @@ class YtDownloadViewModel @Inject constructor(
             else -> error.update { ErrorType.NO_ERROR }
         }
     }
-
 
     fun updateProgressCallback(progress: HashMap<Int,Int>){ //key and DownloadState int value
         for(item in progress){
@@ -290,7 +283,6 @@ class YtDownloadViewModel @Inject constructor(
             itemListFlow.value.get(item.key)?.downloadState?.value = state
         }
     }
-
 
     fun onDownloadedCallback(key:Int, filePath:String){ //key and file path
         itemListFlow.value.get(key)?.downloadState?.value = DownloadState.PROCESSING
@@ -327,23 +319,5 @@ class YtDownloadViewModel @Inject constructor(
                 length = musicData.length.toLong()
             ))
         }
-    }
-
-    fun addDummyItems() {
-        toggleSelectionBar(true)
-        itemList.put(0,DownloadableItem("name1"))
-        itemList.put(1,DownloadableItem("name2"))
-        itemList.put(2,DownloadableItem("name3"))
-        itemList.put(3,DownloadableItem("name4"))
-        itemList.put(4,DownloadableItem("name5"))
-        itemList.put(5,DownloadableItem("name6"))
-        itemList.put(6,DownloadableItem("name7"))
-        itemList.put(7,DownloadableItem("name8"))
-        itemList.put(8,DownloadableItem("name9"))
-        itemList.put(9,DownloadableItem("name10"))
-        itemList.put(10,DownloadableItem("name11"))
-        itemList.put(11,DownloadableItem("name12"))
-
-        itemListFlow.update { itemList }
     }
 }
