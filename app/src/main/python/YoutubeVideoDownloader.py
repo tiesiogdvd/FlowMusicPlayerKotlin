@@ -73,6 +73,7 @@ def getInfo(url: str, callback):
         print(f"Error: {e}")
         return
 
+    printListableKeysRecursive(info)
 
     if info.get('entries') is None:
         # single video
@@ -85,13 +86,29 @@ def getInfo(url: str, callback):
             if info['entries'][i]['title'] == '[Deleted video]':
                 continue
 
-            callback(i, info['entries'][i]['title'], info['title'], info['entries'][i]['thumbnails'][-1]['url'])
+listableTypes = [dict, list]
 
 
-    
+def printListableKeysRecursive(listable, indentCount=4):
+    indentStr = ""
 
+    if indentCount > 0:
+        for i in range(0, indentCount, 4):
+            indentStr += "----"
 
+    if type(listable) is dict:
+        for key in listable.keys():
+            print(indentStr, key, type(listable[key]))
 
+            if type(listable[key]) in listableTypes:
+                printListableKeysRecursive(listable[key], indentCount + 4)
+
+    elif type(listable) is list:
+        for i in range(len(listable)):
+            print(indentStr, i, type(listable[i]))
+
+            if type(listable[i]) in listableTypes:
+                printListableKeysRecursive(listable[i], indentCount + 4)
 
 
 def downloadVideo(url: str, ffmpegExecutable: str, callback):
