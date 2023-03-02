@@ -73,7 +73,7 @@ def getInfo(url: str, callback):
         print(f"Error: {e}")
         return
 
-    printListableKeysRecursive(info)
+    #printListableKeysRecursive(info)
 
     callback(info)
 
