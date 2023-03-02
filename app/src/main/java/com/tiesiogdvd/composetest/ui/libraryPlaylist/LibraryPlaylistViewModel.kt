@@ -30,7 +30,6 @@ data class TaskFilter(
     val searchQuery: String,
     val songSortOrder: SongSortOrder,
     val sortOrder: SortOrder
-
 )
 
 @UnstableApi @HiltViewModel
@@ -53,8 +52,6 @@ class LibraryPlaylistViewModel @Inject constructor(
     val selection = MutableStateFlow(0)
 
     val selectionListFlow = MutableStateFlow(HashMap<Int,Song>())
-
-    val textField = MutableStateFlow("")
 
     val playlistFlow = combine(source,searchQuery,songSortOrder,sortOrder){
             playlistId,query, sortOrderParameters, sortOrder -> TaskFilter(playlistId,query, sortOrderParameters, sortOrder)
