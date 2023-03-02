@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,13 +19,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tiesiogdvd.composetest.R
-import com.tiesiogdvd.composetest.ui.addToPlaylistDialog.AddToPlaylistDialog
-import com.tiesiogdvd.composetest.ui.sortOrderDialog.sortOrderComposable
 import com.tiesiogdvd.composetest.ui.theme.FlowPlayerTheme
 import com.tiesiogdvd.composetest.ui.theme.GetThemeColor
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.withContext
 
 @Composable
 fun Header(

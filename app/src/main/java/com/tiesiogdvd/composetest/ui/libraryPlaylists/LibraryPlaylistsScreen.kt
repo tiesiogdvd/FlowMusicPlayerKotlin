@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import com.tiesiogdvd.composetest.R
 import com.tiesiogdvd.composetest.ui.addToPlaylistDialog.AddToPlaylistDialog
 import com.tiesiogdvd.composetest.ui.destinations.LibraryPlaylistDestination
 import com.tiesiogdvd.composetest.ui.header.Header
@@ -247,7 +248,7 @@ fun PlaylistItem(
                     )
                 } else {
                     Image(
-                        painter = painterResource(id = com.tiesiogdvd.composetest.R.drawable.ic_group_23_image_6),
+                        painter = painterResource(id = R.drawable.ic_group_23_image_6),
                         contentDescription = "desc",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.width(120.dp),

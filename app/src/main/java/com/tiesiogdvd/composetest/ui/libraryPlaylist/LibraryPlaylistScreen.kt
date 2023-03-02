@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,7 +39,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
@@ -54,7 +52,7 @@ import com.tiesiogdvd.composetest.ui.header.HeaderOptions
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionBarComposable
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionBarList
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionType
-import com.tiesiogdvd.composetest.ui.sortOrderDialog.sortOrderComposable
+import com.tiesiogdvd.composetest.ui.sortOrderDialog.SortOrderSongsDialog
 import com.tiesiogdvd.composetest.ui.theme.GetThemeColor
 import com.tiesiogdvd.composetest.util.MusicDataMetadata
 import com.tiesiogdvd.composetest.util.TypeConverter
@@ -77,7 +75,7 @@ fun LibraryPlaylist(navigator: DestinationsNavigator, playlist: Playlist, viewMo
         println("SOURCE PLAYLIST ID ${playlist.id}")
 
         if(viewModel.isSortDialogShown){
-            sortOrderComposable(onDismiss = {
+            SortOrderSongsDialog(onDismiss = {
                 viewModel.dismissSortDialog()
             },
                 onSongSortSelected = {
