@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.tiesiogdvd.composetest.R
@@ -48,12 +49,13 @@ import kotlinx.coroutines.flow.update
 
 
 @Composable
-fun YtDownloadScreen(viewModel: YtDownloadViewModel = hiltViewModel()) {
+fun YtDownloadScreen(navController: NavHostController,viewModel: YtDownloadViewModel = hiltViewModel()) {
     FlowPlayerTheme {
         var text by remember { mutableStateOf("") }
         val selectionListSize = viewModel.selection.collectAsState().value
         val isSelectionBarVisible = viewModel.isSelectionBarVisible.collectAsState().value
         val totalSize = viewModel.itemListFlow.collectAsState().value.size
+        viewModel.currentNavItem.postValue(navController.currentDestination?.route)
 
         Scaffold(bottomBar = {
             AnimatedVisibility(
@@ -191,7 +193,7 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
             AnimatedVisibility(visible = error) {
                 ErrorText(viewModel.error.collectAsState().value, onClickClose = {viewModel.error.update { ErrorType.NO_ERROR }})
                 LaunchedEffect(error){
-                    delay(1000)
+                    delay(2000)
                     viewModel.error.update { ErrorType.NO_ERROR }
                 }
             }
