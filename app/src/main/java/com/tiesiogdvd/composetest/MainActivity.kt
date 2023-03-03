@@ -15,6 +15,7 @@ import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.NavHostController
+import androidx.navigation.NavOptions
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -24,6 +25,7 @@ import com.tiesiogdvd.composetest.ui.bottomNavBar.BottomNavItem
 import com.tiesiogdvd.composetest.ui.NavGraphs
 import com.tiesiogdvd.composetest.ui.bottomNavBar.BottomNavItems
 import com.tiesiogdvd.composetest.ui.bottomNavBar.BottomNavigationBar
+import com.tiesiogdvd.composetest.ui.bottomNavBar.NavRoutes
 import com.tiesiogdvd.composetest.ui.musicPlayer.MusicPlayer
 import com.tiesiogdvd.composetest.ui.theme.*
 import com.tiesiogdvd.composetest.ui.ytDownload.YtDownloadScreen
@@ -53,11 +55,13 @@ class MainActivity : ComponentActivity() {
                     items = BottomNavItems.BottomNavItems,
                     navController = navController,
                     onItemClick = {
-                        navController.popBackStack("library", true)
-                        navController.popBackStack("player", true)
-                        navController.popBackStack("settings", true)
-                        navController.popBackStack("equalizer", true)
-                        navController.navigate(it.route)
+                        navController.navigate(it.route,
+                            navOptions = NavOptions.Builder()
+                                .setPopUpTo(navController.currentDestination!!.id, true, saveState = true)
+                                .setRestoreState(true)
+                                .setLaunchSingleTop(true)
+                                .build(),
+                            navigatorExtras = null )
                     })
             }
             ) {
@@ -72,21 +76,21 @@ class MainActivity : ComponentActivity() {
 @RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun Navigation(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = "library") {
-        composable("library") {
+    NavHost(navController = navController, startDestination = NavRoutes.LIBRARY.name) {
+        composable(NavRoutes.LIBRARY.name, ) {
             DestinationsNavHost(navGraph = NavGraphs.root)
         }
-        composable("equalizer") {
+        composable(NavRoutes.EQUALIZER.name) {
             Equalizer()
         }
-        composable("settings") {
+        composable(NavRoutes.SETTINGS.name) {
             Settings()
         }
-        composable("player"){
+        composable(NavRoutes.PLAYER.name){
             MusicPlayer()
         }
-        composable("yt_download"){
-            YtDownloadScreen()
+        composable(NavRoutes.YT_DOWNLOAD.name){
+            YtDownloadScreen(navController)
         }
     }
 
