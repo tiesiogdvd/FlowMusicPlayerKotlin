@@ -5,11 +5,13 @@ import android.os.Environment
 import android.os.Looper
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chaquo.python.PyObject
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
+import com.tiesiogdvd.composetest.ui.bottomNavBar.NavRoutes
 import com.tiesiogdvd.composetest.ui.bottomNavBar.NavbarController
 import com.tiesiogdvd.composetest.ui.error.ErrorType
 import com.tiesiogdvd.composetest.util.MusicDataMetadata
@@ -50,6 +52,7 @@ class YtDownloadViewModel @Inject constructor(
     navbarController: NavbarController,
     val musicDao: MusicDao
 ):ViewModel() {
+    val currentNavItem = MutableLiveData<String>()
     var input = mutableStateOf("")
     var itemList = mutableStateMapOf<Int, DownloadableItem>()
     val itemListFlow = MutableStateFlow(itemList)
@@ -101,7 +104,7 @@ class YtDownloadViewModel @Inject constructor(
         itemListFlow.update { itemList }
     }
 
-    fun itemsReceivedCallback(info: PyObject){  //key and song name
+    fun itemsReceivedCallback(info: PyObject?){  //key and song name
         //items received after entering link
 
             /*info object -> {
@@ -142,33 +145,40 @@ class YtDownloadViewModel @Inject constructor(
                     best thumbnail of video i: info['entries'][i]['thumbnails'][last]['url']
         */
 
-        val infoMap = info.asMap()
-
-        if(infoMap[PyObject.fromJava("entries")] != null) {
-            // info is a playlist
-            val playlistTitle = infoMap[PyObject.fromJava("title")].toString()
-            val entries = infoMap[PyObject.fromJava("entries")]?.asList() ?: return
-            for (index in  0..entries.size-1){
-                val entry = entries[index].asMap()
-                addVideoToList(index, playlistTitle, entry)
-                //Thread.sleep(1) // prevent freeze
+        if(info!=null){
+            val infoMap = info.asMap()
+            var entriesNo:Int = 0
+            if(infoMap[PyObject.fromJava("entries")] != null) {
+                // info is a playlist
+                val playlistTitle = infoMap[PyObject.fromJava("title")].toString()
+                val entries = infoMap[PyObject.fromJava("entries")]?.asList() ?: return
+                entriesNo = entries.size
+                for (index in  0..entries.size-1){
+                    val entry = entries[index].asMap()
+                    addVideoToList(index, playlistTitle, entry)
+                    //Thread.sleep(1) // prevent freeze
+                }
+            } else {
+                // info is a single video
+                addVideoToList(0, "", infoMap)
             }
-        } else {
-            // info is a single video
-            addVideoToList(0, "", infoMap)
-        }
+            if(entriesNo!=0){
+                if(!isSelectionBarVisible.value){
+                    toggleSelectionBar(true)
+                }
+            }else{
+                error.value=ErrorType.EMPTY_PLAYLIST
+            }
 
+            viewModelScope.launch {
+                updateItemListFlow()
+            }
+        }else{
+            error.value=ErrorType.LINK_NOT_FOUND
+        }
         if(loading.value){
             toggleLoading(false)
         }
-        if(!isSelectionBarVisible.value){
-            toggleSelectionBar(true)
-        }
-
-        viewModelScope.launch {
-            updateItemListFlow()
-        }
-
     }
 
     suspend fun updateItemListFlow() = withContext(Dispatchers.Main){
@@ -213,10 +223,11 @@ class YtDownloadViewModel @Inject constructor(
     }
 
     fun toggleSelectionBar(boolean: Boolean){
-
-        if(isSelectionBarVisible.value!=boolean){
-            isNavbarVisible.update { !boolean }
-            isSelectionBarVisible.update { boolean }
+        if(currentNavItem.value==NavRoutes.YT_DOWNLOAD.name){
+            if(isSelectionBarVisible.value!=boolean){
+                isNavbarVisible.update { !boolean }
+                isSelectionBarVisible.update { boolean }
+            }
         }
     }
 
