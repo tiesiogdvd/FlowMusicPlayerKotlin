@@ -8,11 +8,14 @@ plugins {
     id 'com.chaquo.python'
 }
 
-
 android {
     namespace 'com.tiesiogdvd.composetest'
     compileSdk 33
 
+
+    dexOptions {
+        javaMaxHeapSize "4G"
+    }
 
 
     sourceSets {
@@ -71,7 +74,7 @@ android {
         compose true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion '1.4.0'
+        kotlinCompilerExtensionVersion '1.4.3'
     }
     packagingOptions {
         resources {
@@ -162,7 +165,9 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.2.2")
     implementation('androidx.palette:palette:1.0.0')
 
-    implementation('com.arthenica:mobile-ffmpeg-audio:4.4')
+    implementation 'com.github.lincollincol:amplituda:2.2.2'
+    implementation 'com.github.massoudss:waveformSeekBar:5.0.2'
 
+    implementation 'com.google.accompanist:accompanist-navigation-animation:0.29.0-alpha'
 
 }
