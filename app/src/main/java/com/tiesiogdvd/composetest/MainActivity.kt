@@ -1,4 +1,6 @@
-@file:OptIn(ExperimentalMaterialApi::class, ExperimentalCoroutinesApi::class)
+@file:OptIn(ExperimentalMaterialApi::class, ExperimentalCoroutinesApi::class,
+    ExperimentalAnimationApi::class
+)
 
 package com.tiesiogdvd.composetest
 
@@ -9,6 +11,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 
 import androidx.compose.material.*
@@ -16,12 +19,11 @@ import androidx.compose.runtime.*
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import com.google.accompanist.navigation.animation.AnimatedNavHost
+import com.google.accompanist.navigation.animation.composable
+import com.google.accompanist.navigation.animation.rememberAnimatedNavController
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.ramcosta.composedestinations.DestinationsNavHost
-import com.tiesiogdvd.composetest.ui.bottomNavBar.BottomNavItem
 import com.tiesiogdvd.composetest.ui.NavGraphs
 import com.tiesiogdvd.composetest.ui.bottomNavBar.BottomNavItems
 import com.tiesiogdvd.composetest.ui.bottomNavBar.BottomNavigationBar
@@ -49,7 +51,7 @@ class MainActivity : ComponentActivity() {
             systemUiController.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             systemUiController.isSystemBarsVisible = false // Status & Navigation bars
-            val navController = rememberNavController()
+            val navController = rememberAnimatedNavController()
             Scaffold(bottomBar = {
                 BottomNavigationBar(
                     items = BottomNavItems.BottomNavItems,
@@ -76,20 +78,31 @@ class MainActivity : ComponentActivity() {
 @RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun Navigation(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = NavRoutes.LIBRARY.name) {
-        composable(NavRoutes.LIBRARY.name, ) {
+    AnimatedNavHost(navController = navController, startDestination = NavRoutes.LIBRARY.name) {
+        composable(NavRoutes.LIBRARY.name, enterTransition = { Transitions.enter }, exitTransition = { Transitions.exit }, popEnterTransition = { Transitions.enter }, popExitTransition = { Transitions.exit } )
+
+        {
             DestinationsNavHost(navGraph = NavGraphs.root)
         }
-        composable(NavRoutes.EQUALIZER.name) {
+
+
+        composable(NavRoutes.EQUALIZER.name, enterTransition = { Transitions.enter }, exitTransition = { Transitions.exit }, popEnterTransition = { Transitions.enter }, popExitTransition = {  Transitions.exit } )
+        {
             Equalizer()
         }
-        composable(NavRoutes.SETTINGS.name) {
+
+        composable(NavRoutes.SETTINGS.name, enterTransition = { Transitions.enter }, exitTransition = { Transitions.exit }, popEnterTransition = { Transitions.enter }, popExitTransition = {  Transitions.exit } )
+        {
             Settings()
         }
-        composable(NavRoutes.PLAYER.name){
+
+        composable(NavRoutes.PLAYER.name,enterTransition = { Transitions.enter  }, exitTransition = {  Transitions.exit  }, popEnterTransition = { Transitions.enter }, popExitTransition = {  Transitions.exit } )
+        {
             MusicPlayer()
         }
-        composable(NavRoutes.YT_DOWNLOAD.name){
+
+        composable(NavRoutes.YT_DOWNLOAD.name, enterTransition = { Transitions.enter }, exitTransition = {  Transitions.exit }, popEnterTransition = { Transitions.enter }, popExitTransition = {  Transitions.exit } )
+        {
             YtDownloadScreen(navController)
         }
     }
