@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.palette.graphics.Palette
@@ -43,7 +42,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
-import kotlin.time.Duration.Companion.milliseconds
 
 @RequiresApi(Build.VERSION_CODES.R)
 @Destination
@@ -64,7 +62,7 @@ fun MusicPlayerBackground(
     var palette by remember { mutableStateOf<Palette?>(null) }
     var gradientColor by remember { mutableStateOf<Color>(GetThemeColor.getBackground(isDarkTheme)) }
     var textColor by remember { mutableStateOf<Color>(GetThemeColor.getText(isDarkTheme)) }
-    var oppositeColor by remember { mutableStateOf<Color>(GetThemeColor.getBackground(isDarkTheme)) }
+    var textColorByBrightness by remember { mutableStateOf<Color>(GetThemeColor.getBackground(isDarkTheme)) }
 
     LaunchedEffect(bitmap) {
         bitmap?.let {
@@ -73,18 +71,17 @@ fun MusicPlayerBackground(
                 val newDominantSwatch = newPalette.dominantSwatch
                 val newGradientColor = newDominantSwatch?.rgb?.let { Color(it) } ?: GetThemeColor.getBackground(isDarkTheme)
                 val newTextColor = newDominantSwatch?.rgb?.let { Color(it) } ?: GetThemeColor.getText(isDarkTheme)
-                val newOppositeColor = if(GetThemeColor.isDark(newGradientColor)){GetThemeColor.getText(true)}else{GetThemeColor.getText(false)}
-
+                val newTextColorBrightness = if(GetThemeColor.isDark(newGradientColor)){GetThemeColor.getText(true)}else{GetThemeColor.getText(false)}
                 palette = newPalette
                 gradientColor = newGradientColor
                 textColor = newTextColor
-                oppositeColor = newOppositeColor
+                textColorByBrightness = newTextColorBrightness
             }
         }
         if (bitmap == null) {
             gradientColor = GetThemeColor.getBackground(isDarkTheme)
             textColor = GetThemeColor.getText(isDarkTheme)
-            oppositeColor = GetThemeColor.getText(isDarkTheme)
+            textColorByBrightness = GetThemeColor.getText(isDarkTheme)
         }
     }
     LaunchedEffect(currentSong.songPath) {
@@ -144,9 +141,9 @@ fun MusicPlayerBackground(
             }
 
 
-            Text(currentSong.songName.toString(), fontSize = 16.sp, color = oppositeColor, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
-            Text(if(currentSong.songArtist==null){""}else{ currentSong.songArtist.toString()} , fontSize = 12.sp, color = oppositeColor, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
-            MediaPlayerSeekBar(mediaController = viewModel.controller, currentSong)
+            Text(currentSong.songName.toString(), fontSize = 16.sp, color = textColorByBrightness, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
+            Text(if(currentSong.songArtist==null){""}else{ currentSong.songArtist.toString()} , fontSize = 12.sp, color = textColorByBrightness, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
+            MediaPlayerSeekBar(mediaController = viewModel.controller, currentSong, textColorByBrightness)
 
 
 
@@ -158,7 +155,7 @@ fun MusicPlayerBackground(
 
 
 @Composable
-fun MediaPlayerSeekBar(mediaController: MediaController?, song: Song, viewModel: MusicPlayerViewModel = hiltViewModel()) {
+fun MediaPlayerSeekBar(mediaController: MediaController?, song: Song, textColor:Color, viewModel: MusicPlayerViewModel = hiltViewModel()) {
     var duration by remember(mediaController) { mutableStateOf(mediaController?.duration ?:1L)}
     val seekbarPosition = viewModel.currentPosition.collectAsState().value
 
@@ -182,8 +179,8 @@ fun MediaPlayerSeekBar(mediaController: MediaController?, song: Song, viewModel:
         .padding(horizontal = 10.dp)
         .offset(y = -5.dp)
         .fillMaxWidth()) {
-        Text(text = TypeConverter.formatDuration(seekbarPosition.toLong()), color = Color.White, fontSize = 12.sp)
-        Text(text = TypeConverter.formatDuration(song.length), color = Color.White, fontSize = 12.sp)
+        Text(text = TypeConverter.formatDuration(seekbarPosition.toLong()), color = textColor, fontSize = 12.sp)
+        Text(text = TypeConverter.formatDuration(song.length), color = textColor, fontSize = 12.sp)
     }
 }
 
