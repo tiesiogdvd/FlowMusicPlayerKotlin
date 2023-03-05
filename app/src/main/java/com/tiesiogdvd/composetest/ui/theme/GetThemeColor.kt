@@ -1,6 +1,7 @@
 package com.tiesiogdvd.composetest.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.graphics.ColorUtils
 
 
@@ -64,7 +65,12 @@ object GetThemeColor {
 
 
     fun isDark(color: Color): Boolean {
-        return ColorUtils.calculateLuminance(color.value.toInt()) < 0.5
+        return ColorUtils.calculateLuminance(color.toArgb()) < 0.3
+    }
+
+    fun isColorDark(color: Int): Boolean {
+        val darkness = 1 - (0.299 * android.graphics.Color.red(color) + 0.587 * android.graphics.Color.green(color) + 0.114 * android.graphics.Color.blue(color)) / 255
+        return darkness >= 0.5
     }
 
 }
