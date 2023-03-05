@@ -112,7 +112,7 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
         if(isSelectionBarVisible){
             viewModel.toggleSelectionBar(false)
         }
-    }, enabled = true)
+    }, enabled = isSelectionBarVisible)
 
     LazyColumn(modifier = Modifier.fillMaxHeight()) {
 
