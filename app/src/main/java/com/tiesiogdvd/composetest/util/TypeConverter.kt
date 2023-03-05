@@ -46,3 +46,7 @@ object TypeConverter {
             return sdf.format(date)
         }
 }
+
+fun convertListToArray(list: List<Int?>): IntArray? {
+    return list.stream().mapToInt { i: Int? -> i!! }.toArray()
+}
