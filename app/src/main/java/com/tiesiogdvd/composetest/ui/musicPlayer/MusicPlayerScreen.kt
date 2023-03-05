@@ -1,11 +1,14 @@
 package com.tiesiogdvd.composetest.ui.musicPlayer
 
 import android.os.Build
-import android.support.v4.media.MediaMetadataCompat
-import android.support.v4.media.session.PlaybackStateCompat
-import android.util.AttributeSet
-import android.widget.SeekBar
+import android.view.View
+import android.view.View.OnClickListener
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.widget.LinearLayout
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,16 +21,17 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.graphics.ColorUtils
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.C
-import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.palette.graphics.Palette
+import com.masoudss.lib.SeekBarOnProgressChanged
+import com.masoudss.lib.WaveformSeekBar
 import com.ramcosta.composedestinations.annotation.Destination
 import com.tiesiogdvd.composetest.R
 import com.tiesiogdvd.composetest.ui.theme.FlowPlayerTheme
@@ -37,8 +41,9 @@ import com.tiesiogdvd.composetest.util.TypeConverter
 import com.tiesiogdvd.playlistssongstest.data.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
-
+import kotlin.time.Duration.Companion.milliseconds
 
 @RequiresApi(Build.VERSION_CODES.R)
 @Destination
@@ -67,9 +72,8 @@ fun MusicPlayerBackground(
                 val newPalette = Palette.from(it.asAndroidBitmap()).generate()
                 val newDominantSwatch = newPalette.dominantSwatch
                 val newGradientColor = newDominantSwatch?.rgb?.let { Color(it) } ?: GetThemeColor.getBackground(isDarkTheme)
-                //val newTextColor = newDominantSwatch?.bodyTextColor?.let { Color(it) } ?: GetThemeColor.getText(isDarkTheme)
-                val newTextColor = newPalette.lightMutedSwatch?.rgb?.let { Color(it) } ?: GetThemeColor.getText(isDarkTheme)
-                val newOppositeColor = ColorUtils.blendARGB(newGradientColor.toArgb(), newTextColor.toArgb(), 0.2f).let { Color(it) }
+                val newTextColor = newDominantSwatch?.rgb?.let { Color(it) } ?: GetThemeColor.getText(isDarkTheme)
+                val newOppositeColor = if(GetThemeColor.isDark(newGradientColor)){GetThemeColor.getText(true)}else{GetThemeColor.getText(false)}
 
                 palette = newPalette
                 gradientColor = newGradientColor
@@ -80,7 +84,7 @@ fun MusicPlayerBackground(
         if (bitmap == null) {
             gradientColor = GetThemeColor.getBackground(isDarkTheme)
             textColor = GetThemeColor.getText(isDarkTheme)
-            oppositeColor = GetThemeColor.getBackground(isDarkTheme)
+            oppositeColor = GetThemeColor.getText(isDarkTheme)
         }
     }
     LaunchedEffect(currentSong.songPath) {
@@ -110,7 +114,7 @@ fun MusicPlayerBackground(
                     )
                 } else {
                     Image(
-                        painter = painterResource(id = com.tiesiogdvd.composetest.R.drawable.img_bg_6),
+                        painter = painterResource(id = R.drawable.img_bg_6),
                         contentDescription = "desc",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -139,212 +143,180 @@ fun MusicPlayerBackground(
                 }
             }
 
-            MediaPlayerSeekBar(mediaController = viewModel.controller)
-            Text(currentSong.songName.toString(), fontSize = 16.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
-            Text(if(currentSong.songArtist==null){""}else{ currentSong.songArtist.toString()} , fontSize = 12.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp, bottom = 30.dp))
 
-            PlaybackButtons()
+            Text(currentSong.songName.toString(), fontSize = 16.sp, color = oppositeColor, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
+            Text(if(currentSong.songArtist==null){""}else{ currentSong.songArtist.toString()} , fontSize = 12.sp, color = oppositeColor, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
+            MediaPlayerSeekBar(mediaController = viewModel.controller, currentSong)
+
+
+
+            PlaybackItems(currentSong = currentSong, mediaController = viewModel.controller)
+
         }
     }
 }
 
 
 @Composable
-fun MediaPlayerSeekBar(mediaController: MediaController?) {
-    val playerState by remember(mediaController) { mutableStateOf(mediaController?.playbackState) }
-    var currentPosition by remember(mediaController) { mutableStateOf(mediaController?.currentPosition ?: 0L) }
+fun MediaPlayerSeekBar(mediaController: MediaController?, song: Song, viewModel: MusicPlayerViewModel = hiltViewModel()) {
     var duration by remember(mediaController) { mutableStateOf(mediaController?.duration ?:1L)}
-
-
-    val seekbarPosition = remember { mutableStateOf(0L) }
-    LaunchedEffect(currentPosition) {
-        seekbarPosition.value = currentPosition
-    }
-
-    LaunchedEffect(mediaController?.playbackState) {
-        var position = currentPosition
-        mediaController?.playbackState?.let { state ->
-            while (position < mediaController.currentPosition) {
-                position = mediaController.currentPosition
-                currentPosition = position
-                delay(16) // Update the position approximately every 16ms
-            }
-        }
-    }
-
-    LaunchedEffect(mediaController?.currentMediaItem) {
-        if(mediaController?.duration != C.TIME_UNSET){
-            duration = mediaController?.duration ?: 0L
-        }
-    }
-
-    LaunchedEffect(mediaController?.currentPosition) {
-        delay(100) // Wait for 100ms after seeking
-        currentPosition = mediaController?.currentPosition ?: 0L
-        if(mediaController?.duration != C.TIME_UNSET){
-            duration = mediaController?.duration ?: 0L
-        }
-    }
-
-
-    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier
-        .padding(horizontal = 10.dp)
-        .fillMaxWidth()) {
-        Text(text = TypeConverter.formatDuration(currentPosition), color = Color.White, fontSize = 12.sp)
-        Text(text = TypeConverter.formatDuration(duration), color = Color.White, fontSize = 12.sp)
-    }
+    val seekbarPosition = viewModel.currentPosition.collectAsState().value
 
     Slider(
-        value = currentPosition.toFloat(),
-        valueRange = 0f..(duration.toFloat().coerceAtLeast(1f)),
-        onValueChange = { currentPosition = it.toLong() },
-        onValueChangeFinished = { mediaController?.seekTo(currentPosition) },
+        value = seekbarPosition.toFloat(),
+        valueRange = 0f..(song.length.toFloat().coerceAtLeast(1f)),
+        onValueChange = { value ->
+            viewModel.currentPosition.update {value.toInt()}},
+        onValueChangeFinished = {
+            mediaController?.seekTo(seekbarPosition.toLong()) },
         enabled = true,
-        colors = SliderDefaults.colors(activeTrackColor = GetThemeColor.getButtonSecondary(isSystemInDarkTheme()),
-            thumbColor = GetThemeColor.getPurple(isSystemInDarkTheme()).copy(0.7f)),
+        colors = SliderDefaults.colors(
+            activeTrackColor = GetThemeColor.waveProgress(isSystemInDarkTheme()).copy(0.4f),
+            inactiveTrackColor = GetThemeColor.waveBackground(isSystemInDarkTheme()).copy(0.4f),
+            thumbColor = GetThemeColor.getPurple(isSystemInDarkTheme()).copy(0.7f)
+        ),
         modifier = Modifier
-            .padding(horizontal = 5.dp)
-            .fillMaxWidth()
+            .offset(y = 10.dp)
     )
+    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier
+        .padding(horizontal = 10.dp)
+        .offset(y = -5.dp)
+        .fillMaxWidth()) {
+        Text(text = TypeConverter.formatDuration(seekbarPosition.toLong()), color = Color.White, fontSize = 12.sp)
+        Text(text = TypeConverter.formatDuration(song.length), color = Color.White, fontSize = 12.sp)
+    }
 }
 
 
 
 
 @Composable
-fun PlaybackButtons(viewModel: MusicPlayerViewModel = hiltViewModel()){
+fun PlaybackItems(
+    mediaController: MediaController?,
+    currentSong:Song,
+    viewModel: MusicPlayerViewModel = hiltViewModel()
+){
+    val isPlaying = viewModel.isPlaying.collectAsState().value?:false
+    val isDarkTheme = isSystemInDarkTheme()
+    val amplituda = viewModel.amplituda.collectAsState().value
+    val currentPosition by remember(mediaController) { mutableStateOf(mediaController?.currentPosition ?: 0L) }
+    var playbackPosition = viewModel.currentPosition.collectAsState().value
 
-    var isPlaying = viewModel.isPlaying.collectAsState().value?:false
-
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
-        Surface(shape = RoundedCornerShape(30.dp), color =GetThemeColor.getBackground(
-            isSystemInDarkTheme()).copy(0.7f),
-            modifier = Modifier
-                .clickable { }
-                .size(40.dp)
-                .border(
-                    BorderStroke(1.dp, GetThemeColor.getButton(isSystemInDarkTheme())),
-                    shape = RoundedCornerShape(30.dp)
-                )
-                .padding(3.dp)
-                .border(
-                    BorderStroke(2.dp, GetThemeColor.getButton(isSystemInDarkTheme())),
-                    shape = RoundedCornerShape(30.dp)
-                )) {
-            Icon(painterResource(id = R.drawable.ic_action_playlist),
-                contentDescription = "playlists",
-                modifier = Modifier
-                    .size(40.dp)
-                    .scale(0.75f), tint = Color.White
-            )
-        }
-
-
-        Surface(shape = RoundedCornerShape(30.dp), color =GetThemeColor.getBackground(
-            isSystemInDarkTheme()).copy(0.7f),
-            modifier = Modifier
-                .clickable { viewModel.playPrev() }
-                .size(50.dp)
-                .border(
-                    BorderStroke(1.dp, GetThemeColor.getButton(isSystemInDarkTheme())),
-                    shape = RoundedCornerShape(30.dp)
-                )
-                .padding(3.dp)
-                .border(
-                    BorderStroke(2.dp, GetThemeColor.getButton(isSystemInDarkTheme())),
-                    shape = RoundedCornerShape(30.dp)
-                )) {
-            Icon(painterResource(id = R.drawable.ic_action_previous),
-                contentDescription = "playlists",
-                modifier = Modifier
-                    .size(50.dp)
-                    .scale(0.65f), tint = Color.White
-            )
-        }
-
-
-        Surface(shape = RoundedCornerShape(30.dp), color =GetThemeColor.getBackground(
-            isSystemInDarkTheme()).copy(0.7f),
-            modifier = Modifier
-                .size(60.dp)
-                .clickable { viewModel.changePlaybackState() }
-                .border(
-                    BorderStroke(1.dp, GetThemeColor.getButton(isSystemInDarkTheme())),
-                    shape = RoundedCornerShape(30.dp)
-                )
-                .padding(3.dp)
-                .border(
-                    BorderStroke(2.dp, GetThemeColor.getButton(isSystemInDarkTheme())),
-                    shape = RoundedCornerShape(30.dp)
-                )) {
-
-            if(isPlaying){
-                Icon(painterResource(id = R.drawable.ic_action_pause),
-                    contentDescription = "playlists",
-                    modifier = Modifier
-                        .size(60.dp)
-                        .scale(0.6f), tint = Color.White
-                )
-            }else {
-                Icon(painterResource(id = R.drawable.ic_action_play),
-                    contentDescription = "playlists",
-                    modifier = Modifier
-                        .size(60.dp)
-                        .scale(0.6f), tint = Color.White
-                )
-
-            }
-
-        }
-
-
-        Surface(shape = RoundedCornerShape(30.dp), color =GetThemeColor.getBackground(
-            isSystemInDarkTheme()).copy(0.7f),
-            modifier = Modifier
-                .clickable { viewModel.playNext() }
-                .size(50.dp)
-                .border(
-                    BorderStroke(1.dp, GetThemeColor.getButton(isSystemInDarkTheme())),
-                    shape = RoundedCornerShape(30.dp)
-                )
-                .padding(3.dp)
-                .border(
-                    BorderStroke(2.dp, GetThemeColor.getButton(isSystemInDarkTheme())),
-                    shape = RoundedCornerShape(30.dp)
-                )) {
-            Icon(painterResource(id = R.drawable.ic_action_next),
-                contentDescription = "playlists",
-                modifier = Modifier
-                    .size(50.dp)
-                    .scale(0.65f), tint = Color.White
-            )
-        }
-
-
-        Surface(shape = RoundedCornerShape(30.dp), color =GetThemeColor.getBackground(
-            isSystemInDarkTheme()).copy(0.7f),
-            modifier = Modifier
-                .size(40.dp)
-                .border(
-                    BorderStroke(1.dp, GetThemeColor.getButton(isSystemInDarkTheme())),
-                    shape = RoundedCornerShape(30.dp)
-                )
-                .padding(3.dp)
-                .border(
-                    BorderStroke(2.dp, GetThemeColor.getButton(isSystemInDarkTheme())),
-                    shape = RoundedCornerShape(30.dp)
-                )) {
-            Icon(painterResource(id = R.drawable.ic_action_mix),
-                contentDescription = "playlists",
-                modifier = Modifier
-                    .size(40.dp)
-                    .scale(0.75f), tint = Color.White
-            )
+    LaunchedEffect(isPlaying){
+        viewModel.currentPosition.update {
+            mediaController?.currentPosition?.toInt() ?: 0
         }
     }
 
+    LaunchedEffect(currentSong){
+        viewModel.currentPosition.update {
+            mediaController?.currentPosition?.toInt() ?: 0
+        }
+    }
+
+    LaunchedEffect(playbackPosition){
+        delay(1000)
+        if(isPlaying){
+            viewModel.currentPosition.update {mediaController?.currentPosition?.toInt() ?: 0}
+            //playbackPosition=mediaController?.currentPosition?.toInt() ?: 0
+        }
+    }
+
+
+    LaunchedEffect(playbackPosition){
+        if(isPlaying){
+            viewModel.currentPosition.update {it+10}
+        }
+    }
+    
+    Box(modifier = Modifier.height(150.dp), contentAlignment = Alignment.Center) {
+        AnimatedVisibility(visible = amplituda!=null, enter = fadeIn(), exit = fadeOut()) {
+            AndroidView(factory = {context ->
+                WaveformSeekBar(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 600.dp.value.toInt())
+                    setBackgroundColor(Color.Transparent.toArgb())
+                    waveWidth = 17.dp.value
+                    waveGap= 9.dp.value
+                    waveMinHeight = 20.dp.value
+                    waveCornerRadius= 50.dp.value
+                    setOnClickListener(object :OnClickListener{
+                        override fun onClick(v: View?) {
+                            mediaController?.seekTo(playbackPosition.toLong())
+                        }
+                    })
+
+                    onProgressChanged = object: SeekBarOnProgressChanged{
+                        override fun onProgressChanged(
+                            waveformSeekBar: WaveformSeekBar,
+                            progress: Float,
+                            fromUser: Boolean
+                        ) {
+                            if(fromUser){
+                                viewModel.currentPosition.update {progress.toInt()}
+                                playbackPosition = progress.toInt()
+                            }
+                        }
+                    }
+                    waveBackgroundColor = GetThemeColor.waveBackground(isDarkTheme).toArgb()
+                    waveProgressColor = GetThemeColor.waveProgress(isDarkTheme).toArgb()
+                    sample = amplituda
+                    maxProgress = currentSong.length.toFloat()
+                    visibleProgress = currentSong.length.toFloat()/3
+                }
+            }){
+                if (amplituda != null) {
+                    if(!it.sample.contentEquals(amplituda)){
+                        it.setSampleFrom(amplituda)
+                    }
+                    it.maxProgress = currentSong.length.toFloat()
+                    it.visibleProgress = currentSong.length.toFloat()/3
+                    it.progress = playbackPosition.toFloat()
+                }
+            }
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
+            PlayerAction(icon = R.drawable.ic_action_playlist, onClick = {}, contentDescription = "Playlists", iconScale = 0.75f, size = 40.dp)
+            PlayerAction(icon = R.drawable.ic_action_previous, onClick = {viewModel.playPrev()}, contentDescription = "Previous", iconScale = 0.65f, size = 50.dp)
+            PlayerAction(icon = if(isPlaying || mediaController?.playbackState == Player.EVENT_TRACKS_CHANGED){R.drawable.ic_action_pause}else{R.drawable.ic_action_play}, onClick = {viewModel.changePlaybackState()}, contentDescription = "Play/Pause", iconScale = 0.5f, size = 70.dp)
+            PlayerAction(icon = R.drawable.ic_action_next, onClick = {viewModel.playNext()}, contentDescription = "Next", iconScale = 0.65f, size = 50.dp)
+            PlayerAction(icon = R.drawable.ic_action_mix, onClick = {}, contentDescription = "Mix", iconScale = 0.75f, size = 40.dp)
+        }
+    }
 }
 
+@Composable
+fun PlayerAction(
+    size: Dp = 30.dp,
+    icon: Int,
+    contentDescription: String = "PlayerAction",
+    iconScale:Float = 0.7f,
+    onClick:() -> Unit
 
+    ){
+    Surface(shape = RoundedCornerShape(size), color =GetThemeColor.getButton(
+        isSystemInDarkTheme()).copy(0.6f),
+        modifier = Modifier
+            .clickable {
+                onClick()
+            }
+            .size(size)
+            .border(
+                BorderStroke(2.dp, GetThemeColor.getButtonSecondary(isSystemInDarkTheme())),
+                shape = RoundedCornerShape(size)
+            )
+            .padding(3.dp)
+            .border(
+                BorderStroke(2.dp, GetThemeColor.getButtonSecondary(isSystemInDarkTheme())),
+                shape = RoundedCornerShape(size)
+            )) {
+        Icon(painterResource(id = icon),
+            contentDescription = contentDescription,
+            modifier = Modifier
+                .size(40.dp)
+                .scale(iconScale), tint = Color.White
+        )
+    }
+}
 
 
