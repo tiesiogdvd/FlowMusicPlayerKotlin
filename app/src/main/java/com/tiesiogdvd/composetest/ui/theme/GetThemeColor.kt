@@ -1,6 +1,7 @@
 package com.tiesiogdvd.composetest.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import androidx.core.graphics.ColorUtils
 
 
 object GetThemeColor {
@@ -53,5 +54,17 @@ object GetThemeColor {
         return if (isSystemInDarkMode) loadingDark else loading
     }
 
+    fun waveProgress(isSystemInDarkMode: Boolean): Color{
+        return if (isSystemInDarkMode) waveProgressDark else waveProgress
+    }
+
+    fun waveBackground(isSystemInDarkMode: Boolean): Color{
+        return if (isSystemInDarkMode) waveBackground else waveBackgroundDark
+    }
+
+
+    fun isDark(color: Color): Boolean {
+        return ColorUtils.calculateLuminance(color.value.toInt()) < 0.5
+    }
 
 }
