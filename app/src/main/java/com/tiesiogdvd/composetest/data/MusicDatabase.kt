@@ -1,8 +1,6 @@
 package com.tiesiogdvd.playlistssongstest.data
 
 import android.app.Application
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -24,7 +22,6 @@ abstract class MusicDatabase : RoomDatabase() {
         val application: Application,
         @SingletonComponentScope private val applicationScope:CoroutineScope
     ):RoomDatabase.Callback(){
-        @RequiresApi(Build.VERSION_CODES.R)
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
             val dao = database.get().musicDao()

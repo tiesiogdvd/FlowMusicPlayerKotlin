@@ -4,7 +4,6 @@ package com.tiesiogdvd.composetest.ui.libraryPlaylists
 
 import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -49,8 +48,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-
-@RequiresApi(Build.VERSION_CODES.R)
 @Destination
 @Composable
 fun LibraryPlaylistsScreen(navigator: DestinationsNavigator, viewModel: LibraryPlaylistsViewModel = hiltViewModel()){
@@ -100,7 +97,6 @@ fun LibraryPlaylistsScreen(navigator: DestinationsNavigator, viewModel: LibraryP
 
 
 
-@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun PlaylistList(
     navigator: DestinationsNavigator,
@@ -202,9 +198,6 @@ fun PlaylistList(
 
 
 
-
-
-@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun PlaylistItem(
     playlistWithSongs: PlaylistWithSongs,

@@ -1,7 +1,5 @@
 package com.tiesiogdvd.composetest.ui.bottomNavBar
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -28,7 +26,6 @@ import com.tiesiogdvd.playlistssongstest.data.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun SongItemBar(song: Song, viewModel: NavbarViewModel = hiltViewModel()) {
     var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }

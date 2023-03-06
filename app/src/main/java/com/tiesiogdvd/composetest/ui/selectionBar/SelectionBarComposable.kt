@@ -1,7 +1,5 @@
 package com.tiesiogdvd.composetest.ui.selectionBar
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -24,7 +22,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 
 @ExperimentalCoroutinesApi
-@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun SelectionBarComposable(
     items: List<SelectionBarItem>,

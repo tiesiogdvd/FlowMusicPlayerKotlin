@@ -2,9 +2,7 @@
 
 package com.tiesiogdvd.composetest.ui.ytDownload
 
-import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -243,7 +241,7 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
 }
 
 
-@RequiresApi(Build.VERSION_CODES.R)
+
 @Composable
 fun DownloadableItem(
     songItem: DownloadableItem,

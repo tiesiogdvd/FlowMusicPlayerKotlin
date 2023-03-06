@@ -1,7 +1,5 @@
 package com.tiesiogdvd.composetest.ui.bottomNavBar
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -25,7 +23,6 @@ import com.tiesiogdvd.playlistssongstest.data.Song
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 @ExperimentalCoroutinesApi
-@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun BottomNavigationBar(
     navController: NavHostController,

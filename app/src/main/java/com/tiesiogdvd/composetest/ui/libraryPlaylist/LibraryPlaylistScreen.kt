@@ -2,9 +2,7 @@
 
 package com.tiesiogdvd.composetest.ui.libraryPlaylist
 
-import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.*
 import androidx.compose.animation.core.EaseIn
 import androidx.compose.animation.core.tween
@@ -62,7 +60,6 @@ import kotlinx.coroutines.*
 import kotlin.math.min
 
 
-@RequiresApi(Build.VERSION_CODES.R)
 @Destination
 @Composable
 fun LibraryPlaylist(navigator: DestinationsNavigator, playlist: Playlist, viewModel: LibraryPlaylistViewModel = hiltViewModel()) {
@@ -141,8 +138,6 @@ fun LibraryPlaylist(navigator: DestinationsNavigator, playlist: Playlist, viewMo
 }
 
 
-
-@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun SongsList(
     viewModel: LibraryPlaylistViewModel = hiltViewModel(),
@@ -220,7 +215,6 @@ fun SongsList(
 }
 
 
-@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun SongItem(
     song: Song,

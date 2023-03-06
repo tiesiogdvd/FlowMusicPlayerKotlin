@@ -1,6 +1,7 @@
 package com.tiesiogdvd.composetest.util
 
 import android.app.Application
+import android.os.Build
 import android.provider.MediaStore
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
 import com.tiesiogdvd.playlistssongstest.data.Playlist
@@ -34,9 +35,9 @@ object SongDataGetMusicInfo{
                             folder = File(cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA))).parent,
                             length = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)),
                             songArtist = if(artist=="<unknown>"){null}else{artist},
-                            albumArtist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ARTIST)),
+                            albumArtist = if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ARTIST))}else{null},
                             album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)),
-                            genre = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.GENRE)),
+                            genre = if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.GENRE))}else{null},
                             trackNumber = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)), //Might be CD TRACK NUMBER
                             year = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.YEAR)),
                             playlistId = playlist.id))

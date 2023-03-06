@@ -1,7 +1,5 @@
 package com.tiesiogdvd.composetest.ui.library
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import com.tiesiogdvd.composetest.R
@@ -32,7 +30,6 @@ import com.tiesiogdvd.playlistssongstest.data.PlaylistWithSongs
 import kotlinx.coroutines.*
 
 
-@RequiresApi(Build.VERSION_CODES.R)
 @RootNavGraph(start = true)
 @Destination
 @Composable
@@ -63,7 +60,6 @@ fun Library(navigator: DestinationsNavigator, viewModel: LibraryViewModel = hilt
 }
 
 
-@RequiresApi(Build.VERSION_CODES.R)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlaylistList(

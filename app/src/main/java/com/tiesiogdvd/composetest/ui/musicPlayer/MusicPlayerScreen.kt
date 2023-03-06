@@ -5,7 +5,6 @@ import android.view.View
 import android.view.View.OnClickListener
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.LinearLayout
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -43,7 +42,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 
-@RequiresApi(Build.VERSION_CODES.R)
 @Destination
 @Composable
 fun MusicPlayer(viewModel: MusicPlayerViewModel = hiltViewModel()) {
