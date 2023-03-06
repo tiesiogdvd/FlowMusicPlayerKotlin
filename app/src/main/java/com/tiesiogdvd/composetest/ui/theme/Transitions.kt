@@ -19,8 +19,8 @@ object Transitions {
             1.5f, 0f)
     ) + fadeIn(initialAlpha = 0f)
 
-    val enter = scaleIn(tween(300, easing = EaseInOut),initialScale = 1.15f) + fadeIn(tween(300, easing = EaseInOut))
+    val enter = scaleIn(tween(300, easing = EaseInOut),initialScale = 1.15f) + fadeIn(tween(400, easing = EaseInOut))
 
 
-    val exit = fadeOut(tween(300, easing = EaseInOut)) + scaleOut(tween(300, easing = EaseInOut),targetScale = 1.15f)
+    val exit = fadeOut(tween(600, easing = EaseInOut)) + scaleOut(tween(300, easing = EaseInOut),targetScale = 1.15f)
 }
