@@ -58,24 +58,28 @@ def getInfo(url: str, callback):
 
         'dump_single_json': True,
         'extract_flat': True,
-        'ignoreerrors': True,
+        'ignoreerrors': False,
         'skip_download': True,
-
+        'default-search': 'ytsearch',
         'youtube_include_dash_manifest': False,
         'youtube_include_hls_manifest': False,
     }
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info: dict = ydl.extract_info(url)
-    except yt_dlp.utils.DownloadError as e:
-        # Handle the error, for example:
-        print(f"Error: {e}")
-        return
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        try:
+            # Try to extract info from the original URL
+            info = ydl.extract_info(url)
+            callback(info)
+
+        except yt_dlp.utils.DownloadError:
+            # Case where URL is not valid
+            print("Invalid URL")
+            # Searching for the query instead
+            info = ydl.extract_info(f'ytsearch10:{url}')
+            callback(info)
 
     #printListableKeysRecursive(info)
-
-    callback(info)
+    #callback(info)
 
 
 listableTypes = [dict, list]
