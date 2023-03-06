@@ -1,5 +1,6 @@
 package com.tiesiogdvd.composetest.util
 
+import android.os.Build
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -48,5 +49,10 @@ object TypeConverter {
 }
 
 fun convertListToArray(list: List<Int?>): IntArray? {
-    return list.stream().mapToInt { i: Int? -> i!! }.toArray()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        return list.stream().mapToInt { i: Int? -> i!! }.toArray()
+    }else{
+        return null
+    }
+
 }
