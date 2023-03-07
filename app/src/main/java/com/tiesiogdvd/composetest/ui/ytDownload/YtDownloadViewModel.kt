@@ -54,7 +54,7 @@ class YtDownloadViewModel @Inject constructor(
 ):ViewModel() {
     val currentNavItem = MutableLiveData<String>()
     var input = mutableStateOf("")
-    var itemList = mutableStateMapOf<Int, DownloadableItem>()
+    var itemList = mutableStateMapOf<String, DownloadableItem>()
     val itemListFlow = MutableStateFlow(itemList)
 
     val isNavbarVisible = navbarController.navbarEnabled
@@ -92,7 +92,7 @@ class YtDownloadViewModel @Inject constructor(
         youtubeDLModule.callAttr("getInfo", url, ::itemsReceivedCallback)
     }
 
-    fun itemReceived(key: Int, name: String, playlist: String?, thumbnail: String){  //key and song name
+    fun itemReceived(key: String, name: String, playlist: String?, thumbnail: String){  //key and song name
         //item received after entering link
         if(loading.value==true){
             toggleLoading(false)
@@ -155,12 +155,15 @@ class YtDownloadViewModel @Inject constructor(
                 entriesNo = entries.size
                 for (index in  0..entries.size-1){
                     val entry = entries[index].asMap()
-                    addVideoToList(index, playlistTitle, entry)
+                    val videoUrl = entry[PyObject.fromJava("url")]?.toString()
+                    println(videoUrl)
+                    addVideoToList(videoUrl.toString(), playlistTitle, entry, index)
                     //Thread.sleep(1) // prevent freeze
                 }
             } else {
                 // info is a single video
-                addVideoToList(0, "", infoMap)
+                val videoUrl = infoMap[PyObject.fromJava("url")]?.toString()
+                addVideoToList(videoUrl.toString(), "", infoMap, 0)
             }
             if(entriesNo!=0){
                 if(!isSelectionBarVisible.value){
@@ -182,20 +185,17 @@ class YtDownloadViewModel @Inject constructor(
     }
 
     suspend fun updateItemListFlow() = withContext(Dispatchers.Main){
-        if(Looper.myLooper() == Looper.getMainLooper()) {
-            println("MAIN THREAD")
-        }else{
-            println("NOT MAIN THREAD")
-        }
         itemListFlow.update { itemList }
     }
 
-    fun addVideoToList(key: Int, playlist: String, entry: Map<PyObject?, PyObject?>) {
+    fun addVideoToList(key: String, playlist: String, entry: Map<PyObject?, PyObject?>, index: Int) {
         val title = entry[PyObject.fromJava("title")].toString()
         if(title == "[Deleted video]" || title == "[Private video]") { return }
 
         var thumbnailUrl = ""
         val thumbnails = entry[PyObject.fromJava("thumbnails")]?.asList()
+
+
 
         if(thumbnails != null) {
             val thumbnailMap = thumbnails[thumbnails.size-1].asMap()
@@ -203,11 +203,11 @@ class YtDownloadViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            itemList.put(key, DownloadableItem(name = title, imageSource= MutableStateFlow(thumbnailUrl), playlist = playlist))
+            itemList.put(key, DownloadableItem(name = title, imageSource= MutableStateFlow(thumbnailUrl), playlist = playlist, index = index))
         }
     }
 
-    fun toggleSelection(key:Int){
+    fun toggleSelection(key:String){
         println(Environment.getExternalStorageDirectory().absolutePath)
         itemListFlow.getAndUpdate {
             if(it.get(key)?.isSelected?.value==true){
@@ -255,7 +255,7 @@ class YtDownloadViewModel @Inject constructor(
     }
 
     fun onDownloadSelected(){
-        val songList = ArrayList<Int>()
+        val songList = ArrayList<String>()
         for(item in itemListFlow.value){
             if(item.value.isSelected.value==true){
                 item.value.downloadState.value=DownloadState.PREPARING
@@ -271,7 +271,7 @@ class YtDownloadViewModel @Inject constructor(
         }
     }
 
-    private suspend fun startDownload(songList: ArrayList<Int>) = withContext(Dispatchers.IO){
+    private suspend fun startDownload(songList: ArrayList<String>) = withContext(Dispatchers.IO){
 
     }
 
@@ -291,11 +291,11 @@ class YtDownloadViewModel @Inject constructor(
                 2 -> DownloadState.DOWNLOADING
                 else -> DownloadState.ERROR
             }
-            itemListFlow.value.get(item.key)?.downloadState?.value = state
+            itemListFlow.value.get(item.key.toString())?.downloadState?.value = state
         }
     }
 
-    fun onDownloadedCallback(key:Int, filePath:String){ //key and file path
+    fun onDownloadedCallback(key:String, filePath:String){ //key and file path
         itemListFlow.value.get(key)?.downloadState?.value = DownloadState.PROCESSING
         if(!File(Environment.getExternalStorageDirectory().absolutePath+"/Music/FlowMusic").exists()){
             File(Environment.getExternalStorageDirectory().absolutePath+"/Music/FlowMusic").mkdirs()
