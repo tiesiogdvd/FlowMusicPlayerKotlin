@@ -164,7 +164,9 @@ class YtDownloadViewModel @Inject constructor(
             } else {
                 // info is a single video
                 addVideoToList("", infoMap)
+                entriesNo = 1;
             }
+
             if(entriesNo!=0){
                 if(!isSelectionBarVisible.value){
                     toggleSelectionBar(true)
