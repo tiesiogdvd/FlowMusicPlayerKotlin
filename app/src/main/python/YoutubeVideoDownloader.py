@@ -63,6 +63,7 @@ def getInfo(url: str, callback):
         'default-search': 'ytsearch',
         'youtube_include_dash_manifest': False,
         'youtube_include_hls_manifest': False,
+        'noplaylist': True,
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
