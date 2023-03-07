@@ -27,7 +27,6 @@ videosInfo = list()
 saveChapters = False
 
 
-progress_callback = None
 
 
 def progressHook(info: dict):
@@ -36,9 +35,10 @@ def progressHook(info: dict):
         pass
 
     elif info['status'] == 'downloading':
+        percent = float(info['_percent_str'].strip('%'))
+        progress_callback.invoke(info["info_dict"]["id"],percent)
         print(
             info['downloaded_bytes'],
-            info['total_bytes'],
             info['speed'],
             info['eta'],
             sep=' | ', end='\n'
