@@ -69,17 +69,16 @@ def getInfo(url: str, callback):
         try:
             # Try to extract info from the original URL
             info = ydl.extract_info(url)
-            callback(info)
 
         except yt_dlp.utils.DownloadError:
             # Case where URL is not valid
             print("Invalid URL")
             # Searching for the query instead
             info = ydl.extract_info(f'ytsearch10:{url}')
-            callback(info)
 
-    #printListableKeysRecursive(info)
-    #callback(info)
+        callback(info)
+
+    # printListableKeysRecursive(info)
 
 
 listableTypes = [dict, list]
