@@ -66,10 +66,15 @@ class YtDownloadViewModel @Inject constructor(
 
     val loading = MutableStateFlow(false)
 
+    lateinit var instance:Python
+    lateinit var youtubeDLModule:PyObject
+
     init {
         viewModelScope.launch {
             if(!Python.isStarted()){
                 Python.start(AndroidPlatform(context))
+                instance = Python.getInstance()
+                youtubeDLModule = instance.getModule("YoutubeVideoDownloader")
             }
         }
     }
@@ -87,8 +92,8 @@ class YtDownloadViewModel @Inject constructor(
 
     suspend fun getSongInfo(url: String) = withContext(Dispatchers.IO) {
 
-        val instance = Python.getInstance()
-        val youtubeDLModule = instance.getModule("YoutubeVideoDownloader")
+       // val instance = Python.getInstance()
+       // val youtubeDLModule = instance.getModule("YoutubeVideoDownloader")
         youtubeDLModule.callAttr("getInfo", url, ::itemsReceivedCallback)
     }
 
@@ -272,7 +277,10 @@ class YtDownloadViewModel @Inject constructor(
     }
 
     private suspend fun startDownload(songList: ArrayList<String>) = withContext(Dispatchers.IO){
-
+        val ffmpegPath = File(context.applicationInfo.nativeLibraryDir+"/ffmpeg.so").absolutePath
+        for(url in songList){
+            youtubeDLModule.callAttr("downloadVideo", url, ffmpegPath, ::itemsReceivedCallback)
+        }
     }
 
     fun errorCallback(errorType:Int){
