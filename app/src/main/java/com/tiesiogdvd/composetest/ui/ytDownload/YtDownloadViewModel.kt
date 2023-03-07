@@ -76,9 +76,11 @@ class YtDownloadViewModel @Inject constructor(
 
     fun loadSongsFromLink(){
         println(input.value)
-        toggleLoading(true)
-        if(input.value.isNotEmpty()){
+        if(input.value.isNotEmpty() and input.value.isNotBlank()){
+            toggleLoading(true)
+
             input.value = input.value.replace("\\s".toRegex(), "")
+
             viewModelScope.launch {
                 getSongInfo(input.value)
             }
