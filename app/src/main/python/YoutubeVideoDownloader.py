@@ -112,10 +112,10 @@ def downloadVideo(url: str, ffmpegExecutable: str, callback):
     print(os.environ["HOME"])
     print(ffmpegExecutable)
 
-    callback(1, 1, 1, 1)
+    #callback(1, 1, 1, 1)
 
-    global progress_callback
-    progress_callback = callback
+    #global progress_callback
+    #progress_callback = callback
 
     preset = Presets.audioPreset
 
