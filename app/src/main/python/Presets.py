@@ -1,19 +1,22 @@
 import os
 
+
 class Preset:
-    subtitles:bool
-    subtitlesLanguage:str
-    subtitleFormat:str
-    archive:str
-    thumbnails:bool
-    cutThumbnails:bool
-    saveOriginalThumbnail:bool
-    format:str
-    outputTemplate:str
-    extractAudio:bool
-    outputFileType:str = None
+    subtitles: bool
+    subtitlesLanguage: str
+    subtitleFormat: str
+    archive: str
+    thumbnails: bool
+    cutThumbnails: bool
+    saveOriginalThumbnail: bool
+    format: str
+    outputTemplate: str
+    extractAudio: bool
+    outputFileType: str = None
+
 
 audioPreset = Preset()
+
 
 audioPreset.subtitles = True
 audioPreset.subtitlesLanguage = ["en.*"]

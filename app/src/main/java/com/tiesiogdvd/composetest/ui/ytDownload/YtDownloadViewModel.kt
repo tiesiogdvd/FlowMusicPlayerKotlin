@@ -75,16 +75,18 @@ class YtDownloadViewModel @Inject constructor(
                 Python.start(AndroidPlatform(context))
                 instance = Python.getInstance()
                 youtubeDLModule = instance.getModule("YoutubeVideoDownloader")
-                youtubeDLModule.put("progress_callback", ::updateProgressCallback)
+                youtubeDLModule.put("progressCallback", ::updateProgressCallback)
+                youtubeDLModule.put("videoDownloadedCallback", ::onDownloadProcessedCallback)
             }
         }
     }
 
     fun loadSongsFromLink(){
         println(input.value)
-        toggleLoading(true)
-        if(input.value.isNotEmpty()){
+        if(input.value.isNotEmpty() and input.value.isNotBlank()){
+            toggleLoading(true)
             input.value = input.value.replace("\\s".toRegex(), "")
+
             viewModelScope.launch {
                 getSongInfo(input.value)
             }
@@ -92,7 +94,6 @@ class YtDownloadViewModel @Inject constructor(
     }
 
     suspend fun getSongInfo(url: String) = withContext(Dispatchers.IO) {
-
        // val instance = Python.getInstance()
        // val youtubeDLModule = instance.getModule("YoutubeVideoDownloader")
         youtubeDLModule.callAttr("getInfo", url, ::itemsReceivedCallback)
@@ -106,6 +107,7 @@ class YtDownloadViewModel @Inject constructor(
         if(!isSelectionBarVisible.value){
             toggleSelectionBar(true)
         }
+
         itemList.put(key, DownloadableItem(name = name, imageSource= MutableStateFlow(thumbnail), playlist = playlist))
         itemListFlow.update { itemList }
     }
@@ -154,14 +156,17 @@ class YtDownloadViewModel @Inject constructor(
         if(info!=null){
             val infoMap = info.asMap()
             var entriesNo:Int = 0
+
             if(infoMap[PyObject.fromJava("entries")] != null) {
                 // info is a playlist
                 val playlistTitle = infoMap[PyObject.fromJava("title")].toString()
                 val entries = infoMap[PyObject.fromJava("entries")]?.asList() ?: return
                 entriesNo = entries.size
+
                 for (index in  0..entries.size-1){
                     val entry = entries[index].asMap()
                     val videoId = entry[PyObject.fromJava("id")]?.toString()
+
                     println(videoId)
                     addVideoToList(videoId.toString(), playlistTitle, entry, index)
                     //Thread.sleep(1) // prevent freeze
@@ -170,6 +175,8 @@ class YtDownloadViewModel @Inject constructor(
                 // info is a single video
                 val videoId = infoMap[PyObject.fromJava("id")]?.toString()
                 addVideoToList(videoId.toString(), "", infoMap, 0)
+
+                entriesNo = 1
             }
             if(entriesNo!=0){
                 if(!isSelectionBarVisible.value){
@@ -200,8 +207,6 @@ class YtDownloadViewModel @Inject constructor(
 
         var thumbnailUrl = ""
         val thumbnails = entry[PyObject.fromJava("thumbnails")]?.asList()
-
-
 
         if(thumbnails != null) {
             val thumbnailMap = thumbnails[thumbnails.size-1].asMap()
@@ -281,7 +286,7 @@ class YtDownloadViewModel @Inject constructor(
         val ffmpegPath = File(context.applicationInfo.nativeLibraryDir+"/ffmpeg.so").absolutePath
         for(id in songList){
             viewModelScope.launch(Dispatchers.IO) {
-                youtubeDLModule.callAttr("downloadVideo", "https://www.youtube.com/watch?v=$id", ffmpegPath, ::itemsReceivedCallback)
+                youtubeDLModule.callAttr("downloadVideo", "https://www.youtube.com/watch?v=$id", ffmpegPath)
             }
         }
     }
@@ -314,14 +319,18 @@ class YtDownloadViewModel @Inject constructor(
 
     fun onDownloadProcessedCallback(key:String, filePath:String){ //key and file path
         itemListFlow.value.get(key)?.downloadState?.value = DownloadState.PROCESSING
+
         if(!File(Environment.getExternalStorageDirectory().absolutePath+"/Music/FlowMusic").exists()){
             File(Environment.getExternalStorageDirectory().absolutePath+"/Music/FlowMusic").mkdirs()
         }
+
         val file = File(filePath)
-        val directory = File(Environment.getExternalStorageDirectory().absolutePath+"/Music/FlowMusic")
+
+        println(file.name + " FILE NAME")
+        val targetPath = File(Environment.getExternalStorageDirectory().absolutePath+"/Music/FlowMusic/"+file.name)
 
         if(file.exists()){
-            val songFile = file.copyTo(directory)
+            val songFile = file.copyTo(targetPath)
             insertSongToDatabase(songFile)
         }
     }
@@ -330,6 +339,7 @@ class YtDownloadViewModel @Inject constructor(
     fun insertSongToDatabase(file:File){
         val musicData = MusicDataMetadata()
         musicData.setAllData(file.absolutePath)
+
         viewModelScope.launch {
             if(!musicDao.playlistExists("Youtube")){
                 musicDao.insertPlaylist(Playlist("Youtube"))
