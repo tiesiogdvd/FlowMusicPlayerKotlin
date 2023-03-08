@@ -99,11 +99,16 @@ def downloadVideo(url: str, ffmpegExecutable: str):
             )
 
     def progressHook(info: dict):
-        if info['status'] == 'finished':
-            progressCallback(info['info_dict']['id'], 100.0)
-        elif info['status'] == 'downloading':
-            percent = float(info['_percent_str'].strip('%'))
-            progressCallback(info['info_dict']['id'], percent)
+        print(info['info_dict'].keys())
+
+        try:
+            if info['status'] == 'finished':
+                progressCallback(info['info_dict']['id'], 100.0)
+            elif info['status'] == 'downloading':
+                percent = float(info['_percent_str'].strip('%'))
+                progressCallback(info['info_dict']['id'], percent)
+        except:
+            pass
 
     ydl_opts = {
         'quiet': False,
