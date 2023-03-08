@@ -2,9 +2,10 @@ import yt_dlp
 import os
 
 import Presets
+import Tagger
 
 
-def dictFilter(dictionary: dict, keysToKeep: list):
+def dictFilter(dictionary: dict, keysToKeep: list = None):
     if keysToKeep is None:
         keysTokeep = [
             'title', 'playlist_index', 'album',
@@ -19,37 +20,6 @@ def dictFilter(dictionary: dict, keysToKeep: list):
             dictionary.pop(key)
 
     return dictionary
-
-
-videosInfo = list()
-
-
-saveChapters = False
-
-
-
-
-def progressHook(info: dict):
-    if info['status'] == 'finished':
-        # give progress_callback index of the downloaded item (for playlists)
-        pass
-
-    elif info['status'] == 'downloading':
-        percent = float(info['_percent_str'].strip('%'))
-        progress_callback.invoke(info["info_dict"]["id"],percent)
-        print(
-            info['downloaded_bytes'],
-            info['speed'],
-            info['eta'],
-            sep=' | ', end='\n'
-        )
-
-        """ progress_callback.invoke(
-            int(info['total_bytes']),
-            int(info['downloaded_bytes']),
-            int(info['speed']),
-            int(info['eta'])
-        ) """
 
 
 def getInfo(url: str, callback):
@@ -79,8 +49,8 @@ def getInfo(url: str, callback):
             info = ydl.extract_info(f'ytsearch10:{url}')
             callback(info)
 
-    #printListableKeysRecursive(info)
-    #callback(info)
+    #  printListableKeysRecursive(info)
+    #  callback(info)
 
 
 listableTypes = [dict, list]
@@ -108,33 +78,38 @@ def printListableKeysRecursive(listable, indentCount=4):
                 printListableKeysRecursive(listable[i], indentCount + 4)
 
 
-def downloadVideo(url: str, ffmpegExecutable: str, callback):
-    print(os.environ["HOME"])
+progressCallback = None
+videoDownloadedCallback = None
+
+
+def downloadVideo(url: str, ffmpegExecutable: str):
+    print(os.environ['HOME'])
     print(ffmpegExecutable)
-
-    #callback(1, 1, 1, 1)
-
-    #global progress_callback
-    #progress_callback = callback
 
     preset = Presets.audioPreset
 
-    ''' def postHook(info: dict):
-        if info['status'] == 'finished' and
-        info['postprocessor'] == 'MoveFiles':
-            if saveChapters == True and
-             type(info['info_dict']['chapters']) != 'dict' and
-              info['info_dict']['chapters'] != None:
-                writeChapters(info['info_dict']['chapters'],
-                            info['info_dict']['filepath'])
+    def postHook(info: dict):
+        if (info['status'] == 'finished' and
+                info['postprocessor'] == 'MoveFiles'):
+            tagVideo(dictFilter(info['info_dict']))
 
-            videosInfo.append(dictFilter(info['info_dict'])) '''
+            videoDownloadedCallback(
+              info['info_dict']['id'],
+              info['info_dict']['filepath']
+            )
+
+    def progressHook(info: dict):
+        if info['status'] == 'finished':
+            progressCallback(info['info_dict']['id'], 100.0)
+        elif info['status'] == 'downloading':
+            percent = float(info['_percent_str'].strip('%'))
+            progressCallback(info['info_dict']['id'], percent)
 
     ydl_opts = {
         'quiet': False,
         'ignoreerrors': True,
-
-        'restrictfilenames': True,
+        'noplaylist': True,
+        # 'restrictfilenames': True,
 
         'paths': {'home': os.environ["HOME"]},  # save in local app storage
 
@@ -148,7 +123,7 @@ def downloadVideo(url: str, ffmpegExecutable: str, callback):
         'outtmpl': {'default': preset.outputTemplate},
 
         'postprocessors': [],  # post processors can be added later
-        'postprocessor_hooks': ["""postHook"""],
+        'postprocessor_hooks': [postHook],
         'progress_hooks': [progressHook],
 
         'ffmpeg_location': ffmpegExecutable
@@ -159,6 +134,13 @@ def downloadVideo(url: str, ffmpegExecutable: str, callback):
             {
                 'key': 'FFmpegExtractAudio',
                 'preferredquality': 0
+            }
+        )
+
+    if preset.thumbnails:
+        ydl_opts['postprocessors'].append(
+            {
+                'key': 'EmbedThumbnail'
             }
         )
 
@@ -179,8 +161,11 @@ def downloadVideo(url: str, ffmpegExecutable: str, callback):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.extract_info(url)
 
-    tagVideos(videosInfo)
+
+def tagVideo(videoInfo: dict):
+    tagger = Tagger.Tagger()
+
+    tagger.setTags(videoInfo)
 
 
-def tagVideos(videosInfo):
-    pass
+# downloadVideo("https://www.youtube.com/watch?v=VLp8x54JmfA", None)
