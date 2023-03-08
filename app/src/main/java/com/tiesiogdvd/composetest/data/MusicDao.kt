@@ -20,9 +20,9 @@ interface MusicDao {
     }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSongQuery(song: Song){updatePlaylistModifiedDate(song.playlistId)}
+    suspend fun insertSongQuery(song: Song)
     suspend fun insertSong(song:Song){
-        insertSong(song)
+        insertSongQuery(song)
         updatePlaylistModifiedDate(song.playlistId)
     }
 
