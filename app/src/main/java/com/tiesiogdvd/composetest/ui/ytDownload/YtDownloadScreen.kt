@@ -248,6 +248,7 @@ fun DownloadableItem(
     isSelected:MutableStateFlow<Boolean>,
     downloadState: MutableStateFlow<DownloadState>
 ){
+    val progress = songItem.progress.collectAsState().value
     val selected = isSelected.collectAsState().value
     val downloadType = downloadState.collectAsState().value
     val imageSource = songItem.imageSource.collectAsState().value
@@ -280,9 +281,11 @@ fun DownloadableItem(
                 }else{
                     Image(painterResource(id = R.drawable.ic_group_23_image_6), contentDescription = "emptyIcon")
                 }
-
-                if (downloadType != DownloadState.FINISHED && downloadType!=DownloadState.SELECTION) {
+                if (downloadType == DownloadState.PREPARING) {
                     LinearProgressIndicator(modifier = Modifier.width(97.dp), color = GetThemeColor.getLoading(isSystemInDarkTheme()))
+                }
+                if (downloadType == DownloadState.DOWNLOADING) {
+                    LinearProgressIndicator(modifier = Modifier.width(97.dp), color = GetThemeColor.getLoading(isSystemInDarkTheme()), progress = progress!!)
                 }
             }
 
