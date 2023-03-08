@@ -326,8 +326,8 @@ class YtDownloadViewModel @Inject constructor(
 
         val file = File(filePath)
 
-
-        val targetPath = File(Environment.getExternalStorageDirectory().absolutePath+"/Music/FlowMusic")
+        println(file.name + " FILE NAME")
+        val targetPath = File(Environment.getExternalStorageDirectory().absolutePath+"/Music/FlowMusic/"+file.name)
 
         if(file.exists()){
             val songFile = file.copyTo(targetPath)
@@ -344,7 +344,6 @@ class YtDownloadViewModel @Inject constructor(
             if(!musicDao.playlistExists("Youtube")){
                 musicDao.insertPlaylist(Playlist("Youtube"))
             }
-
             musicDao.insertSong(Song(
                 songName = musicData.title,
                 songPath = file.absolutePath,
