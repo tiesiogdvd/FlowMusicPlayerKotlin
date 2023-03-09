@@ -56,7 +56,9 @@ class MusicPlayerViewModel @Inject constructor(
         currentSource.asLiveData().observeForever{
             viewModelScope.launch{
                 amplituda.value=null
-                getAmplituda(it)
+                if(currentSource.first().songName!=null){
+                    getAmplituda(it)
+                }
             }
         }
     }
