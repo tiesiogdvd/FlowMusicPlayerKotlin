@@ -55,11 +55,15 @@ class MainActivity : ComponentActivity() {
                     items = BottomNavItems.BottomNavItems,
                     navController = navController,
                     onItemClick = {
+                        val currentDest = navController.currentDestination?.route
+                        val itDest = it.route
+                        val matches = currentDest==NavRoutes.LIBRARY.name && itDest==NavRoutes.LIBRARY.name
+                        println(matches)
                         navController.navigate(it.route,
                             navOptions = NavOptions.Builder()
-                                .setPopUpTo(navController.currentDestination!!.id, true, saveState = true)
-                                .setRestoreState(true)
-                                .setLaunchSingleTop(true)
+                                .setPopUpTo(navController.currentDestination!!.id, !matches, saveState = !matches)
+                                .setRestoreState(!matches)
+                                .setLaunchSingleTop(!matches)
                                 .build(),
                             navigatorExtras = null )
                     })
