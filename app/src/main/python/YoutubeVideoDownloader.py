@@ -82,9 +82,8 @@ progressCallback = None
 videoDownloadedCallback = None
 
 
-def downloadVideo(url: str, ffmpegExecutable: str):
+def downloadVideo(url: str):
     print(os.environ['HOME'])
-    print(ffmpegExecutable)
 
     preset = Presets.audioPreset
 
@@ -112,7 +111,7 @@ def downloadVideo(url: str, ffmpegExecutable: str):
 
     ydl_opts = {
         'quiet': False,
-        'ignoreerrors': True,
+        'ignoreerrors': False,
         'noplaylist': True,
         # 'restrictfilenames': True,
 
@@ -131,7 +130,7 @@ def downloadVideo(url: str, ffmpegExecutable: str):
         'postprocessor_hooks': [postHook],
         'progress_hooks': [progressHook],
 
-        'ffmpeg_location': ffmpegExecutable
+        'ffmpeg_location': ffmpegPath
     }
 
     if preset.extractAudio:
@@ -160,11 +159,14 @@ def downloadVideo(url: str, ffmpegExecutable: str):
     if preset.outputFileType is not None:
         ydl_opts['merge_output_format'] = preset.outputFileType
 
-    if preset.archive != '':
-        ydl_opts['download_archive'] = preset.archive
+    #if preset.archive != '':
+     #   ydl_opts['download_archive'] = preset.archive
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.extract_info(url)
+        try:
+            ydl.extract_info(url)
+        except:
+            itemErrorCallback.invoke(url)
 
 
 def tagVideo(videoInfo: dict):
