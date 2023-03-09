@@ -17,14 +17,21 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -98,6 +105,7 @@ fun YtDownloadScreen(navController: NavHostController,viewModel: YtDownloadViewM
 
 
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
     val downloadMap = viewModel.itemListFlow.collectAsState()
@@ -105,6 +113,8 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
     val loading = viewModel.loading.collectAsState().value
     val error = viewModel.error.collectAsState().value!=ErrorType.NO_ERROR
     var text by remember { mutableStateOf("") }
+
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     BackHandler(onBack = {
         if(isSelectionBarVisible){
@@ -127,10 +137,14 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
                     shape = RoundedCornerShape(30.dp),
                     color = GetThemeColor.getButton(isSystemInDarkTheme())) {
 
-                    BasicTextField(
+                    BasicTextField(keyboardOptions = KeyboardOptions.Default.copy(autoCorrect = false, capitalization = KeyboardCapitalization.None),
                         value = text,
                         enabled = true,
                         singleLine = true,
+                        keyboardActions = KeyboardActions(onDone = {
+                            viewModel.loadSongsFromLink()
+                            keyboardController?.hide()
+                        }),
                         onValueChange = { newText ->
                             viewModel.onInputChanged(newText)
                             text = newText },
@@ -148,6 +162,7 @@ fun DownloadableList(viewModel: YtDownloadViewModel = hiltViewModel()) {
                         .height(25.dp)
                         .padding(end = 5.dp)
                         .clickable {
+                            keyboardController?.hide()
                             if (!loading) {
                                 viewModel.loadSongsFromLink()
                             }
@@ -254,7 +269,22 @@ fun DownloadableItem(
     val imageSource = songItem.imageSource.collectAsState().value
     val initialColor = if(!selected){GetThemeColor.getButton(isSystemInDarkTheme())}else{GetThemeColor.getPurple(isSystemInDarkTheme())}
     var surfaceColor by remember { mutableStateOf(initialColor) }
-    val targetColor = if(downloadType == DownloadState.FINISHED){GetThemeColor.getGreen(isSystemInDarkTheme())}else{if(!selected){GetThemeColor.getButton(isSystemInDarkTheme())}else{GetThemeColor.getPurple(isSystemInDarkTheme())}}
+
+    val targetColor = if(downloadType!=DownloadState.ERROR) {
+        if (downloadType == DownloadState.FINISHED) {
+            GetThemeColor.getGreen(isSystemInDarkTheme())
+        } else {
+            if (!selected) {
+                GetThemeColor.getButton(isSystemInDarkTheme())
+            } else {
+                GetThemeColor.getPurple(isSystemInDarkTheme())
+            }
+        }
+    }else{
+        GetThemeColor.getError(isSystemInDarkTheme())
+    }
+
+
     val animatedColor by animateColorAsState(targetValue = targetColor, tween(durationMillis = 400, easing = EaseIn))
 
     LaunchedEffect(animatedColor) {
@@ -281,10 +311,10 @@ fun DownloadableItem(
                 }else{
                     Image(painterResource(id = R.drawable.ic_group_23_image_6), contentDescription = "emptyIcon")
                 }
-                if (downloadType == DownloadState.PREPARING) {
+                if (downloadType == DownloadState.PREPARING || downloadType == DownloadState.PROCESSING) {
                     LinearProgressIndicator(modifier = Modifier.width(97.dp), color = GetThemeColor.getLoading(isSystemInDarkTheme()))
                 }
-                if (downloadType == DownloadState.DOWNLOADING) {
+                if (downloadType == DownloadState.DOWNLOADING || downloadType == DownloadState.PROCESSING ) {
                     LinearProgressIndicator(modifier = Modifier.width(97.dp), color = GetThemeColor.getLoading(isSystemInDarkTheme()), progress = progress!!)
                 }
             }
@@ -304,6 +334,9 @@ fun DownloadableItem(
                     Column(modifier = Modifier
                         .align(Alignment.CenterVertically)) {
                         Text(text = songItem.name, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, color = if(selected){GetThemeColor.getText(!isSystemInDarkTheme())} else {GetThemeColor.getText(isSystemInDarkTheme())}, modifier = Modifier.wrapContentHeight(Alignment.Bottom))
+                        AnimatedVisibility(visible = downloadType==DownloadState.ERROR) {
+                            Text(text = "Video is not available", fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = if(selected){GetThemeColor.getText(!isSystemInDarkTheme())} else {GetThemeColor.getText(isSystemInDarkTheme())}, modifier = Modifier.wrapContentHeight(Alignment.Bottom))
+                        }
                     }
                 }
             }
