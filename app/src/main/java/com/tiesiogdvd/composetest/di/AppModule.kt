@@ -2,8 +2,13 @@ package com.tiesiogdvd.playlistssongstest.di
 
 import android.app.Application
 import android.content.Context
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultDataSource.Factory
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.room.Room
 import com.tiesiogdvd.composetest.data.PreferencesManager
 import com.tiesiogdvd.composetest.util.SongDataGetMusicInfo
@@ -16,6 +21,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.android.scopes.ServiceScoped
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -49,6 +55,9 @@ object AppModule {
     fun provideDataSourceFactory(@ApplicationContext context: Context
     ) = DefaultDataSource.Factory(context)
 
+    @Singleton
+    @Provides
+    fun provideProgressiveMediaSourceFactory(dataSourceFactory: Factory) = ProgressiveMediaSource.Factory(dataSourceFactory)
 
     @SingletonComponentScope
     @Provides
@@ -69,11 +78,36 @@ object AppModule {
 
     @Singleton
     @Provides
-    fun provideMusicSource(musicDao: MusicDao, dataSourceFactory: DefaultDataSource.Factory, preferencesManager: PreferencesManager) = MusicSource(musicDao, dataSourceFactory, preferencesManager)
+    fun provideMusicSource(musicDao: MusicDao, preferencesManager: PreferencesManager, exoPlayer: ExoPlayer) = MusicSource(musicDao,exoPlayer, preferencesManager)
 
     @Singleton
     @Provides
     fun provideNavbarController() = NavbarController()
+
+
+
+    @Singleton //Equivalent of singleton
+    @Provides
+    fun provideAudioAttributes() = AudioAttributes.Builder()
+        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+        .setUsage(C.USAGE_MEDIA)
+        .build()
+
+
+
+    @Singleton
+    @Provides
+    fun provideExoPlayer(
+        @ApplicationContext context: Context,
+        audioAttributes: AudioAttributes
+    ) =
+        ExoPlayer.Builder(context).build().apply {
+            setAudioAttributes(audioAttributes,true)
+            setHandleAudioBecomingNoisy(true)
+            pauseAtEndOfMediaItems = false
+            setForegroundMode(true)
+        }
+
 
 }
 
