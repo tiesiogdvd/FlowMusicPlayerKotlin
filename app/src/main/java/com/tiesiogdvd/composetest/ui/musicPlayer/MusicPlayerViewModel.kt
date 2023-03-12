@@ -2,7 +2,6 @@ package com.tiesiogdvd.composetest.ui.musicPlayer
 
 import android.app.Application
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.asFlow
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.tiesiogdvd.composetest.data.PreferencesManager
@@ -12,14 +11,12 @@ import com.tiesiogdvd.playlistssongstest.data.MusicDao
 import com.tiesiogdvd.playlistssongstest.data.Song
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import linc.com.amplituda.*
-import java.util.concurrent.Executors
 import javax.inject.Inject
 
 @HiltViewModel
@@ -56,7 +53,7 @@ class MusicPlayerViewModel @Inject constructor(
         currentSource.asLiveData().observeForever{
             viewModelScope.launch{
                 amplituda.value=null
-                if(currentSource.first().songName!=null){
+                if(it!=null && it.songName!=null){
                     getAmplituda(it)
                 }
             }
