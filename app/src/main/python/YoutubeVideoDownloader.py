@@ -111,7 +111,7 @@ def downloadVideo(url: str):
 
     ydl_opts = {
         'quiet': False,
-        'ignoreerrors': False,
+        'ignoreerrors': True,
         'noplaylist': True,
         # 'restrictfilenames': True,
 
