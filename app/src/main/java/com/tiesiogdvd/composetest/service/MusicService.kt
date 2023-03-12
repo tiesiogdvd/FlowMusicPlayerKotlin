@@ -82,6 +82,11 @@ class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationMa
         }
     }
 
+    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+        super.onMediaItemTransition(mediaItem, reason)
+        println("ITEM TRANSITION")
+    }
+
     override fun onNotificationPosted(
         notificationId: Int,
         notification: Notification,
@@ -121,6 +126,7 @@ class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationMa
         if(session.player.currentMediaItem!=currentSong){
             //updateNotification(session)
             currentSong = session.player.currentMediaItem
+            musicSource.currentSong = session.player.currentMediaItem
             if(currentSong!=null){
                 serviceScope.launch {
                     preferencesManager.updateCurrentSongID(currentSong!!.mediaId.toInt())
@@ -145,7 +151,6 @@ class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationMa
 
     override fun onCreate() {
         super.onCreate()
-
         activityIntent = packageManager.getLaunchIntentForPackage(packageName).let {
             //.let{} passes activityIntent as it parameter to this PendingIntent
             PendingIntent.getActivity(this,0,it,PendingIntent.FLAG_IMMUTABLE)
@@ -160,60 +165,13 @@ class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationMa
             .setPauseActionIconResourceId(R.drawable.ic_action_pause)
             .setPreviousActionIconResourceId(R.drawable.ic_action_previous)
             .setNextActionIconResourceId(R.drawable.ic_action_next)
-
             .build()
         playerNotificationManager.setUseStopAction(true)
         playerNotificationManager.setMediaSessionToken(mediaLibrarySession.sessionCompatToken)
-
-
-
-        musicSource.concatenatingSource.observeForever ({
-            println("OBSERVER ACTIVATED")
-            println(musicSource.sourceLiveData.value?.size)
-            if (musicSource.sourceLiveData.value?.size!=null){
-                setMediaSource(it)
-                //exoPlayer.setMediaSource(it)
-            }
-        })
-
-
         println("CREATED SERVICE")
     }
 
 
-    private fun setMediaSource(mediaSource: MediaSource) {
-            println("BEFORE")
-        val curSongIndex = if(exoPlayer.currentMediaItem==null) getValidIndex()
-        else getValidIndexExo()
-        val curSongPosition = exoPlayer.currentPosition
-        exoPlayer.setMediaSource(mediaSource)
-
-        if (curSongIndex != null && curSongIndex!=-1) {
-            exoPlayer.seekTo(curSongIndex,curSongPosition+200)
-        }
-            exoPlayer.prepare()
-
-           // exoPlayer.shuffleModeEnabled = true
-
-            println("AFTER")
-    }
-
-    private fun getValidIndex():Int{
-        val prefCurrentSong = musicSource.itemIndexById(preferencesManager.getSongID())
-        if(prefCurrentSong!=null){
-            return prefCurrentSong
-        }else{
-            return 0
-        }
-    }
-
-    private fun getValidIndexExo():Int?{
-        if(musicSource.songToPlay!=null){
-            return musicSource.itemIndexById(musicSource.songToPlay!!.id)!!
-        }else{
-            return musicSource.sourceLiveData.value?.indexOfFirst{ it.id.toString() == exoPlayer.currentMediaItem!!.mediaId }
-        }
-    }
 
     override fun onDestroy() {
         exoPlayer.release()
@@ -222,14 +180,10 @@ class MusicService: MediaLibraryService(), Player.Listener, PlayerNotificationMa
         super.onDestroy()
     }
 
-
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession {
         return mediaLibrarySession
     }
 
     private inner class CustomMediaLibrarySessionCallback : MediaLibrarySession.Callback{
-
-
     }
-
 }
