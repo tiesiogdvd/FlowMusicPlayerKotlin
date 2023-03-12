@@ -54,7 +54,7 @@ fun MusicPlayer(viewModel: MusicPlayerViewModel = hiltViewModel()) {
 fun MusicPlayerBackground(
     viewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
-    val currentSong = viewModel.currentSource.collectAsState(Song("null", playlistId = 0, songPath = "null")).value
+    val currentSong = viewModel.currentSource.collectAsState(null).value
     val isDarkTheme = isSystemInDarkTheme()
     var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
     var palette by remember { mutableStateOf<Palette?>(null) }
@@ -82,9 +82,11 @@ fun MusicPlayerBackground(
             textColorByBrightness = GetThemeColor.getText(isDarkTheme)
         }
     }
-    LaunchedEffect(currentSong.songPath) {
-        withContext(Dispatchers.IO) {
-            bitmap = MusicDataMetadata.getBitmap(currentSong.songPath)
+    LaunchedEffect(currentSong) {
+        if(currentSong!=null){
+            withContext(Dispatchers.IO) {
+                bitmap = MusicDataMetadata.getBitmap(currentSong.songPath)
+            }
         }
     }
 
@@ -139,13 +141,16 @@ fun MusicPlayerBackground(
             }
 
 
-            Text(currentSong.songName.toString(), fontSize = 16.sp, color = textColorByBrightness, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
-            Text(if(currentSong.songArtist==null){""}else{ currentSong.songArtist.toString()} , fontSize = 12.sp, color = textColorByBrightness, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
-            MediaPlayerSeekBar(mediaController = viewModel.controller, currentSong, textColorByBrightness)
+            Text(if(currentSong!=null){currentSong.songName.toString()}else{""}, fontSize = 16.sp, color = textColorByBrightness, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
+            Text(if(currentSong!=null && currentSong.songArtist==null){""}else{ currentSong?.songArtist.toString()} , fontSize = 12.sp, color = textColorByBrightness, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
+            currentSong?.let {
+                MediaPlayerSeekBar(mediaController = viewModel.controller,
+                    it, textColorByBrightness)
+            }
 
 
 
-            PlaybackItems(currentSong = currentSong, mediaController = viewModel.controller)
+            currentSong?.let { PlaybackItems(currentSong = it, mediaController = viewModel.controller) }
 
         }
     }
