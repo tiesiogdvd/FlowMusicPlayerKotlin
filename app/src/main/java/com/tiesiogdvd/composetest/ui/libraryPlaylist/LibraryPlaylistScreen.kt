@@ -2,14 +2,25 @@
 
 package com.tiesiogdvd.composetest.ui.libraryPlaylist
 
+import android.graphics.Paint.Align
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.*
-import androidx.compose.animation.core.EaseIn
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.*
+
+
+
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.*
@@ -35,29 +46,44 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.consumeAllChanges
+import androidx.compose.ui.input.pointer.consumePositionChange
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.debugInspectorInfo
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.zIndex
+import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.tiesiogdvd.composetest.ui.addToPlaylistDialog.AddToPlaylistDialog
 import com.tiesiogdvd.composetest.ui.header.Header
 import com.tiesiogdvd.composetest.ui.header.HeaderOptions
+import com.tiesiogdvd.composetest.ui.lottieAnimation.LottieCustom
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionBarComposable
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionBarList
 import com.tiesiogdvd.composetest.ui.selectionBar.SelectionType
 import com.tiesiogdvd.composetest.ui.sortOrderDialog.SortOrderSongsDialog
 import com.tiesiogdvd.composetest.ui.theme.GetThemeColor
-import com.tiesiogdvd.composetest.util.MusicDataMetadata
+import com.tiesiogdvd.composetest.ui.theme.Transitions
 import com.tiesiogdvd.composetest.util.TypeConverter
 import kotlinx.coroutines.*
-
-
-import kotlin.math.min
+import java.io.File
+import kotlin.math.*
 
 
 @Destination
@@ -65,7 +91,7 @@ import kotlin.math.min
 fun LibraryPlaylist(navigator: DestinationsNavigator, playlist: Playlist, viewModel: LibraryPlaylistViewModel = hiltViewModel()) {
     FlowPlayerTheme {
         val isSelectionBarVisible = viewModel.isSelectionBarVisible.collectAsState().value
-        val totalSize = viewModel.songs?.size?:0
+        val totalSize = viewModel.songsAll?.size?:0
         val selectionListSize = viewModel.selection.collectAsState().value
 
         viewModel.setSource(playlist.id)
@@ -113,23 +139,24 @@ fun LibraryPlaylist(navigator: DestinationsNavigator, playlist: Playlist, viewMo
                                 else -> println("haha")
 
                             }
-                    }, onCheckChange = {viewModel.toggleSelectAll()}, noOfSelected = selectionListSize, totalSize = totalSize)
+                    }, onCheckChange = {viewModel.toggleSelectAll()}, noOfSelected = selectionListSize, totalSize = totalSize, onRangeSelected = {viewModel.toggleSelectRange()})
                 }
             }
 
         }, content = {
                 padding-> Column(modifier = Modifier.padding(padding))
         {
-            Surface(
+            Box(
                 modifier = Modifier
-                    .fillMaxSize(),
-                color = GetThemeColor.getBackground(isSystemInDarkTheme())
+                    .background(color = GetThemeColor.getBackground(isSystemInDarkTheme()))
+                    .fillMaxSize()
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                 ) {
                     SongsList(playlist = playlist)
+                    //DummyList()
                 }
             }
         }
@@ -137,13 +164,29 @@ fun LibraryPlaylist(navigator: DestinationsNavigator, playlist: Playlist, viewMo
     }
 }
 
-
 @Composable
 fun SongsList(
     viewModel: LibraryPlaylistViewModel = hiltViewModel(),
     playlist: Playlist
 ){
+    val scrollOffset = remember {mutableStateOf(0f)}
+    val playingSongID = viewModel.currentSongId.collectAsState().value
+    val headerScrollConnection = remember{
+        object:NestedScrollConnection{
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val deltaY = available.y
+                scrollOffset.value += deltaY * 0.5f // Change 0.5f to adjust the parallax speed
+                if(scrollOffset.value>0){
+                    scrollOffset.value=0f
+                }
+                println(scrollOffset)
+                println(available)
+                return super.onPreScroll(available, source)
+            }
 
+        }
+    }
+    val scrollState = rememberLazyListState()
     val playlistSongs = viewModel.playlistFlow.collectAsState(initial = listOf()).value
     val isSelectionBarVisible = viewModel.isSelectionBarVisible.collectAsState().value
 
@@ -153,110 +196,375 @@ fun SongsList(
         }
     }, enabled = isSelectionBarVisible)
 
-    LazyColumn(modifier = Modifier
-        .wrapContentHeight()
-        /*.recomposeHighlighter()*/){
-        item {
-            Header(bitmapSource = viewModel.bitmap, headerName = playlist.playlistName)
-        }
-
-        stickyHeader {
-            HeaderOptions(
-                onOpenSortDialog = { viewModel.openSortDialog() },
-                text = viewModel.searchQuery
-            )
-        }
 
 
-        itemsIndexed(items = playlistSongs, key = {index, song -> song.id}){
-                index, song ->
-            val animatedOpacity = remember { androidx.compose.animation.core.Animatable(0f) }
-            val isSelected = viewModel.selectionListFlow.collectAsState().value.get(song.id)!=null
-            LaunchedEffect(Unit) {
-                launch {
-                    animatedOpacity.animateTo(
-                        targetValue = 1f,
-                        animationSpec = tween(durationMillis = 300)
+    Box(modifier = Modifier.fillMaxSize()){
+        LazyColumn(state = scrollState,modifier = Modifier
+            .nestedScroll(headerScrollConnection)
+            //.fillMaxHeight()
+            /*.recomposeHighlighter()*/){
+            item {
+                Header(bitmapSource = viewModel.bitmap, headerName = playlist.playlistName, scrollOffsetY = scrollOffset)
+            }
+
+            stickyHeader {
+                Box(modifier = Modifier
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(color = GetThemeColor.getBackground(isSystemInDarkTheme()))){
+                    HeaderOptions(
+                        onOpenSortDialog = { viewModel.openSortDialog() },
+                        text = viewModel.searchQuery,
+                        onClickMix = {viewModel.playMix()},
+                        onClickPlay = {viewModel.playFirst()}
                     )
                 }
             }
 
-            Column(modifier = Modifier
-                .padding(start = 25.dp)
-                .alpha(animatedOpacity.value)
-                .combinedClickable(
-                    onClick = {
-                        if (!isSelectionBarVisible) {
-                            viewModel.onSongSelected(song)
-                        } else {
-                            viewModel.toggleSelection(song)
+           /* stickyHeader {
+                Layout(modifier = Modifier,
+                    content = {
+                        Box(modifier = Modifier
+                            .zIndex(200f)
+                            .wrapContentHeight()
+                            .align(Alignment.CenterEnd)) {
+                            CustomScrollbar(songs = playlistSongs,scrollState)
                         }
+                    }
+                ) { measurables, constraints ->
+                    val placeable = measurables.first().measure(constraints)
 
-                    },
-                    onLongClick = {
-                        // viewModel.removeSong(song)
-                        //viewModel.hideSong(song)
-                        viewModel.toggleSelection(song)
-                        viewModel.isSelectionBarSelected(true)
+                    // Set the width and height of the Layout to zero
+                    layout(0, 0) {
+                        placeable.placeRelative(0, 0)
+                    }
+                }
+            }*/
 
-                    })
-                .animateItemPlacement())
-            {
-                SongItem(playlistSongs.get(index), isSelected = isSelected)
+
+
+            itemsIndexed(items = playlistSongs, key = {index, song -> song.id}){
+                    index, song ->
+                val animatedOpacity = remember { Animatable(0f) }
+                val isSelected = viewModel.selectionListFlow.collectAsState().value.get(song.id)!=null
+                val isPlaying = playingSongID == song.id
+
+
+                Column(modifier = Modifier
+                    .padding(start = 25.dp)
+                    //   .alpha(animatedOpacity.value)
+                    /*   .drawBehind {
+                        drawRect(color = Color.Transparent, alpha = animatedOpacity.value)
+                    }*/
+
+                    .combinedClickable(
+                        onClick = {
+                            if (!isSelectionBarVisible) {
+                                viewModel.onSongSelected(song)
+                            } else {
+                                viewModel.toggleSelection(song)
+                            }
+
+                        },
+                        onLongClick = {
+                            viewModel.toggleSelection(song)
+                            viewModel.isSelectionBarSelected(true)
+
+                        })
+                    .animateItemPlacement())
+                {
+                    /*Row(modifier = Modifier.height(50.dp)) {
+                        Text(text = song.songName.toString())
+                    }*/
+                    SongItem(song, isSelected = isSelected, isPlaying = isPlaying)
+                }
             }
-        }
 
-        item {
-            Spacer(modifier = Modifier.padding(100.dp))
+            item {
+                Spacer(modifier = Modifier.padding(100.dp))
+            }
+
+
         }
+        val scope = rememberCoroutineScope()
+
+        Box(modifier = Modifier
+            .zIndex(200f)
+            .wrapContentHeight()
+            .align(Alignment.CenterEnd)) {
+            CustomScrollbar(songs = playlistSongs,
+                //scrollState = scrollState,
+                scrollToItem = {
+                scope.launch {
+                    if(it>=0){
+                        scrollState.scrollToItem(it)
+                    }
+                }
+            })
+        }
+        /*Layout(modifier = Modifier,
+            content = {
+                Box(modifier = Modifier.zIndex(200f).wrapContentHeight().align(Alignment.CenterEnd)) {
+                    CustomScrollbar(songs = playlistSongs,scrollState)
+                }
+            }
+        ) { measurables, constraints ->
+            val placeable = measurables.first().measure(constraints)
+
+            // Set the width and height of the Layout to zero
+            layout(0, 0) {
+                placeable.placeRelative(0, 0)
+            }
+        }*/
 
 
     }
+
+
+
+
+
+
+
 }
+
+
+@Composable
+fun CustomScrollbar(
+    songs:List<Song>,
+    scrollToItem: (Int) -> Unit,
+   // scrollState: LazyListState
+){
+
+    val scope = rememberCoroutineScope()
+
+    val firstIndexesByLetter = remember {mutableMapOf<Char, Int>()}
+    val indexes = remember {mutableListOf<Int>()}
+        firstIndexesByLetter[Char(0x25CB)] = 0
+        indexes.add(0)
+        for (i in songs.indices) {
+            val firstChar = songs[i].songName?.firstOrNull()?.uppercaseChar() ?: continue
+            if (firstChar in 'A'..'Z' && firstChar !in firstIndexesByLetter) {
+                firstIndexesByLetter[firstChar] = i
+                indexes.add(i)
+            }
+        }
+
+    Box(modifier = Modifier.fillMaxSize()){
+
+        Column(verticalArrangement = Arrangement.Bottom,horizontalAlignment = Alignment.End, modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 50.dp)
+            .width(50.dp)
+            .padding(end = 5.dp)) {
+
+            val density = LocalDensity.current
+            val height = remember { mutableStateOf(0.dp) }
+            val position = remember { mutableStateOf(0.dp) }
+            val distanceFromEdge = remember { mutableStateOf(0.dp)}
+            val prev = remember{ mutableStateOf(-1)}
+            val selectedItem = remember { mutableStateOf(-1)}
+            val itemHeight = remember { mutableStateOf(0.dp) }
+
+            val selectionEnabled = remember { mutableStateOf(false)}
+
+
+
+
+            fun updateSelectedIndexIfNeeded(position: Dp) {
+                selectedItem.value = (position/(itemHeight.value)).toInt()
+                scope.coroutineContext.cancelChildren()
+                scope.launch {
+                  //  delay(50)
+                    if(selectedItem.value!=prev.value && selectedItem.value>=0){
+                        //println(indexes)
+                        delay(10)
+                        scrollToItem(indexes.get(selectedItem.value))
+                        //scrollState.scrollToItem(indexes.get(selectedItem.value))
+                        prev.value = selectedItem.value
+
+                    }
+
+                }
+            }
+
+            LaunchedEffect(firstIndexesByLetter){
+                println("INDEXES CHANGE")
+            }
+
+
+
+            Column(modifier = Modifier
+                .pointerInput(Unit) {
+                    detectDragGestures(onDragEnd = {
+                        selectionEnabled.value = false
+                        // selectedItem.value = -10
+                    }, onDrag = { change, dragAmount ->
+                        selectionEnabled.value = true
+                        distanceFromEdge.value = change.position.x.toDp()
+                        position.value = change.position.y.toDp()
+                        println(position.value.toString() + " DRAG")
+                        updateSelectedIndexIfNeeded(position.value)
+                        change.consume()
+
+                    })
+                }
+                .onGloballyPositioned { coordinates ->
+                    height.value = with(density) {
+                        println(height)
+                        coordinates.size.height.toDp()
+                    }
+                    itemHeight.value = height.value / firstIndexesByLetter.size
+                }
+
+            ){
+                firstIndexesByLetter.entries.forEachIndexed { index, row ->
+                    val rowIndex = index
+
+                    val distanceFromSelection = (rowIndex - selectedItem.value).absoluteValue
+
+                    val target = if (distanceFromSelection <= 11 && selectedItem.value >= 0 && selectionEnabled.value) {
+                        val maxOffset = 70.dp - distanceFromEdge.value.times(1.2f)
+                        val scaleFactor = (PI / 22.0) * distanceFromSelection
+                        val sineValue = sin(PI - scaleFactor)
+                        maxOffset * sineValue.toFloat() - maxOffset
+                    } else {
+                        0.dp
+                    }
+                    val animatedOffset by animateDpAsState(targetValue = target, tween(durationMillis = 300, easing = EaseOutCubic))
+
+                    Row(modifier = Modifier
+                        .offset {
+                            IntOffset(
+                                x = animatedOffset
+                                    .toPx()
+                                    .toInt(), y = 0
+                            )
+                        }
+                        // .offset(x = animatedOffset)
+                        .zIndex(100f)
+                        .pointerInput(Unit) {
+                            detectTapGestures(onPress = {
+                                if (row.value >= 0) {
+                                    scrollToItem(row.value)
+                                }
+
+                            })
+                        }){
+
+                        Box(){
+                            Layout(modifier = Modifier,
+                                content = {
+                                    Column(modifier = Modifier
+                                        .wrapContentHeight()
+                                        .align(Alignment.Center)) {
+                                        if(distanceFromSelection==0 && selectionEnabled.value) {
+                                                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(50.dp).offset(x = -80.dp, y = -10.dp).clip(RoundedCornerShape(20.dp))
+                                                        .background(
+                                                        GetThemeColor.getText(
+                                                            isSystemInDarkTheme()
+                                                        )
+                                                    )){
+                                                        Text(textAlign = TextAlign.Center,modifier = Modifier
+                                                            .align(Alignment.Center),text = row.key.toString(), fontSize = 25.sp, color = if(rowIndex==selectedItem.value){GetThemeColor.getPurple(isSystemInDarkTheme())}else{Color.White})
+                                                    }
+
+
+
+                                        }
+                                    }
+                                }
+                            ) { measurables, constraints ->
+                                val placeable = measurables.first().measure(constraints)
+                                layout(0, 0) {
+                                    placeable.placeRelative(0, 0)
+                                }
+                            }
+
+                            Text(text = row.key.toString(), fontSize = if(rowIndex==selectedItem.value){16.sp}else{13.sp}, color = if(rowIndex==selectedItem.value){GetThemeColor.getPurple(isSystemInDarkTheme())}else{Color.White})
+                        }
+                    }
+
+                }
+            }
+
+
+        }
+    }
+
+    println(firstIndexesByLetter)
+}
+
+
+
 
 
 @Composable
 fun SongItem(
     song: Song,
     isSelected: Boolean,
+    isPlaying:Boolean = false,
 ){
+    val coroutineScope = rememberCoroutineScope({ Dispatchers.Default })
     var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
-    val initialColor = if(!isSelected){GetThemeColor.getButton(isSystemInDarkTheme())}else{GetThemeColor.getPurple(isSystemInDarkTheme())}
-    var surfaceColor by remember { mutableStateOf(initialColor) }
-    val targetColor = if(!isSelected){GetThemeColor.getButton(isSystemInDarkTheme())}else{GetThemeColor.getPurple(isSystemInDarkTheme())}
-    val animatedColor by animateColorAsState(targetValue = targetColor, tween(durationMillis = 400, easing = EaseIn))
+    val animatedColor by animateColorAsState(targetValue = if(!isSelected){
+        if(!isPlaying){
+            GetThemeColor.getButton(isSystemInDarkTheme())
+        }else{
+            GetThemeColor.getPurple(isSystemInDarkTheme()).copy(0.7f)
+        }
+    }else{
+        GetThemeColor.getPurple(isSystemInDarkTheme())
+         }, tween(durationMillis = 400, easing = EaseIn))
 
-    LaunchedEffect(song.songPath) {
-        withContext(Dispatchers.IO) {
-            bitmap = MusicDataMetadata.getBitmap(song.songPath)
+    val size by animateFloatAsState(targetValue = if(isSelected){0.9f}else{1f}, tween(300, 0, EaseInOutBounce))
+
+
+
+
+    DisposableEffect(song) {
+        val job = coroutineScope.launch {
+            delay(150)
+
+                val result = BitmapLoader.loadBitmapAsync(
+                    coroutineScope,
+                    song.songPath
+                ).await()
+                println("Bitmap laoded")
+                bitmap = result
+            }
+        onDispose {
+            job.cancel()
+            bitmap = null
         }
     }
 
-    // Update the Surface color to the animated color
-    LaunchedEffect(animatedColor) {
-        surfaceColor = animatedColor
-    }
 
-    Surface(
+    // Update the Surface color to the animated color
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(end = 20.dp)
-            .padding(vertical = 5.dp),
-        color = Color.Transparent
+            .padding(vertical = 5.dp)
     ){
         Row(
             modifier = Modifier,
         ) {
-            Surface(shape = RoundedCornerShape(30.dp), modifier = Modifier.align(Alignment.CenterVertically)) {
-                if (bitmap != null) {
+            Box(modifier = Modifier
+                .size(45.dp)
+                .align(Alignment.CenterVertically)
+                .clip(shape = RoundedCornerShape(45.dp))) {
+
+                androidx.compose.animation.AnimatedVisibility(visible = bitmap!=null, enter = Transitions.enter, exit = Transitions.exit) {
                     Image(
                         bitmap = bitmap!!,
                         contentDescription = "desc",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.size(45.dp),
                     )
-                } else {
+                }
+
+                androidx.compose.animation.AnimatedVisibility(visible = bitmap==null, enter = Transitions.enter, exit = Transitions.exit) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_group_23_image_6),
                         contentDescription = "desc",
@@ -264,22 +572,37 @@ fun SongItem(
                         modifier = Modifier.size(45.dp),
                     )
                 }
+
+                if(isPlaying){
+                    LottieCustom(
+                        lottieCompositionSpec = LottieCompositionSpec.RawRes(R.raw.playing),
+                        color = GetThemeColor.getText(isSystemInDarkTheme()),
+                        isHidden = !isPlaying,
+                        speed = 0.3f
+                    )
+                }
             }
 
             Spacer(modifier = Modifier
                 .size(30.dp)
                 .align(Alignment.CenterVertically))
-            Surface(
+            Box(
                 modifier = Modifier
                     .align(Alignment.CenterVertically)
                     .height(50.dp)
-                    .fillMaxWidth(),
-                color = surfaceColor,
-                shape = RoundedCornerShape(30.dp)) {
+                    .scale(size)
+                    .fillMaxWidth()
+                    /*.drawBehind {
+                        drawRoundRect(color = animatedColor, cornerRadius = CornerRadius(x = 1f, y = 1f))
+                    }*/
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(animatedColor))
+
+            {
                 Row(modifier = Modifier
                     .padding(start = 15.dp)
-                    .align(Alignment.CenterVertically)
-                    .fillMaxWidth()) {
+                    .fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier
                         .align(Alignment.CenterVertically)
                         .weight(3.5F)) {
@@ -301,6 +624,7 @@ fun SongItem(
         }
     }
 }
+
 
 
 
