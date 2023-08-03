@@ -11,7 +11,18 @@ This is a full recreation of https://github.com/tiesiogdvd/FlowMusicPlayer/ with
 ### Coroutines,
 ### States,
 ### ExoPlayer with Media3,
-### Room database
+### Room database,
+### Data retrieval and storing with MediaStore,
+### Services and notifications
+### Lyrics retrieval,
+### YT Downlaod,
+### Python integration,
+### FFMpeg implementations,
+### Lottie animations,
+### Custom composables with focus on minimal parallax design
+### Loading optimizations for large data
+### Dark/Light modes
+
 
 
 
