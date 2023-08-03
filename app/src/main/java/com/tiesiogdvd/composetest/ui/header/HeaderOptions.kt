@@ -23,8 +23,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 @Composable
 fun HeaderOptions(
     onOpenSortDialog:()->Unit,
-    text:MutableStateFlow<String>
-
+    text:MutableStateFlow<String>,
+    onClickPlay:()->Unit,
+    onClickMix:()->Unit,
 ){
     val textState = text.collectAsState().value
 
@@ -58,7 +59,7 @@ fun HeaderOptions(
                     .height(25.dp)
                     .width(25.dp)
                     .align(Alignment.CenterVertically)
-                    .clickable {}
+                    .clickable {onClickMix()}
                     .offset(x = 1.dp),
                 tint = GetThemeColor.getDrawableBar(isSystemInDarkTheme())
             )
@@ -99,7 +100,7 @@ fun HeaderOptions(
                     .width(20.dp)
                     .align(Alignment.CenterVertically)
                     .scale(0.7f)
-                    .clickable {},
+                    .clickable {onClickPlay()},
                 tint = GetThemeColor.getDrawableBar(isSystemInDarkTheme())
             )
         }
