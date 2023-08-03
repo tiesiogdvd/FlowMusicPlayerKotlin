@@ -8,6 +8,8 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ConcatenatingMediaSource
+import androidx.media3.exoplayer.source.ShuffleOrder
+import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import com.tiesiogdvd.composetest.data.PreferencesManager
 import com.tiesiogdvd.composetest.data.SourcePreferences
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
@@ -34,7 +36,10 @@ data class MediaItemCombined(
 
     var songToPlay:Song? = null
     var currentSong : MediaItem? = null
+    var currentSongIndex : Int? = 0
     var currentPosition: Int = 0
+
+
 
 
     val currentPlaylistID = preferencesManager.currentSourceFlow
@@ -79,6 +84,9 @@ data class MediaItemCombined(
         })
     }
 
+    fun setShuffleOrder(shuffleOrder: ShuffleOrder){
+        exoPlayer.setShuffleOrder(shuffleOrder)
+    }
 
     suspend fun fetchSource() = withContext(Dispatchers.IO) {
         println("STARTING FETCH")
@@ -238,6 +246,10 @@ data class MediaItemCombined(
         }else{
             return sourceLiveData.value?.indexOfFirst{ it.id.toString() == exoPlayer.currentMediaItem!!.mediaId }
         }
+    }
+
+    fun getSongCount():Int{
+        return exoPlayer.mediaItemCount
     }
 }
 
