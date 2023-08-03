@@ -77,8 +77,9 @@ class LibraryPlaylistsViewModel @Inject constructor(
     init {
         fullPlayliststFlow.asLiveData().observeForever {
             playlists = it
-            bitmap.update {
-                MusicDataMetadata.getBitmap(playlists!!.get(0).playlist.bitmapSource)
+            viewModelScope.launch {
+                val bmap = MusicDataMetadata.getBitmap(playlists!!.get(0).playlist.bitmapSource)
+                bitmap.update { bmap }
             }
         }
     }
