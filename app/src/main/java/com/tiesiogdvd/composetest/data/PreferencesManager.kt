@@ -6,8 +6,11 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.core.IOException
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.lifecycle.asLiveData
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -41,7 +44,13 @@ enum class RepeatMode{
 }
 data class SongPreferences(val currentSongID:Int)
 data class SourcePreferences(val currentSource: Int, val songSortOrder: SongSortOrder, val sortOrder: SortOrder)
-data class PlayModePreferences(val isShuffleEnabled: Boolean, val repeatMode: RepeatMode, val songSortOrder: SongSortOrder, val sortOrder: SortOrder)
+data class PlayModePreferences(
+    val isShuffleEnabled: Boolean,
+    val repeatMode: RepeatMode,
+    val songSortOrder: SongSortOrder,
+    val sortOrder: SortOrder,
+    val shuffleSeed: Int? = 0
+    )
 
 
 private val Context.dataStoreSong: DataStore<Preferences> by preferencesDataStore("current_song")
@@ -53,8 +62,6 @@ class PreferencesManager @Inject constructor(context: Context){
     private val dataStoreSong: DataStore<Preferences> = context.dataStoreSong
     private val dataStoreSourcePrefs: DataStore<Preferences> = context.dataStoreSourcePrefs
     private val dataStorePlayModePrefs: DataStore<Preferences> = context.dataStorePlayModePrefs
-
-
 
 
     val currentSongFlow = dataStoreSong.data.catch {
@@ -94,14 +101,18 @@ class PreferencesManager @Inject constructor(context: Context){
     }
     }.map { preferences->
         val shuffleOrder = preferences[PreferencesKeysPlayPrefs.IS_SHUFFLED] ?: false
+        val shuffleSeed = preferences[PreferencesKeysPlayPrefs.SHUFFLE_SEED] ?: 0
         val repeatMode = RepeatMode.valueOf(preferences[PreferencesKeysPlayPrefs.REPEAT_MODE] ?: RepeatMode.REPEAT_DISABLED.name)
         val songSortOrder = SongSortOrder.valueOf(preferences[PreferencesKeysPlayPrefs.SONG_SORT_ORDER] ?: SongSortOrder.BY_NAME.name)
         val sortOrder = SortOrder.valueOf(preferences[PreferencesKeysPlayPrefs.SORT_ORDER] ?: SortOrder.Z_A.name)
-        PlayModePreferences(shuffleOrder,repeatMode,songSortOrder,sortOrder)
+        PlayModePreferences(shuffleOrder,repeatMode,songSortOrder,sortOrder, shuffleSeed)
     }
 
-
-
+    fun getShuffleSeed(): Flow<Int> {
+        return dataStorePlayModePrefs.data.map { preferences ->
+            preferences[PreferencesKeysPlayPrefs.SHUFFLE_SEED]?:0
+        }
+    }
 
     fun getSongID(): Int? = runBlocking{
         return@runBlocking dataStoreSong.data.map { preferences -> preferences[PreferencesKeysCurrentSong.CURRENT_SONG_ID]}.first()
@@ -111,9 +122,16 @@ class PreferencesManager @Inject constructor(context: Context){
         return@runBlocking dataStoreSourcePrefs.data.map { preferences -> preferences[PreferencesKeysSourcePrefs.CURRENT_PLAYLIST_ID]}.first() ?: 0
     }
 
+
     fun getCurrentShuffleOrder(): Boolean = runBlocking{
         return@runBlocking dataStorePlayModePrefs.data.map { preferences -> preferences[PreferencesKeysPlayPrefs.IS_SHUFFLED]}.first() ?: false
     }
+
+    fun getCurrentShuffleSeed(): Int = runBlocking{
+        return@runBlocking dataStorePlayModePrefs.data.map { preferences -> preferences[PreferencesKeysPlayPrefs.SHUFFLE_SEED]}.first() ?: 0
+    }
+
+
 
     fun getCurrentRepeatMode(): RepeatMode = runBlocking{
         return@runBlocking dataStorePlayModePrefs.data.map { preferences -> RepeatMode.valueOf(preferences[PreferencesKeysPlayPrefs.REPEAT_MODE] ?:RepeatMode.REPEAT_DISABLED.name) }.first()
@@ -125,9 +143,11 @@ class PreferencesManager @Inject constructor(context: Context){
         return@runBlocking dataStoreSourcePrefs.data.map { preferences -> SongSortOrder.valueOf(preferences[PreferencesKeysSourcePrefs.SONG_SORT_ORDER] ?:SongSortOrder.BY_NAME.name) }.first()
     }
 
-    suspend fun updateCurrentSongID(currentSongID: Int){
-        dataStoreSong.edit {
-                preferences -> preferences[PreferencesKeysCurrentSong.CURRENT_SONG_ID] = currentSongID
+    suspend fun updateCurrentSongID(currentSongID: Int) = withContext(Dispatchers.IO){
+        if(getSongID()!=currentSongID){
+            dataStoreSong.edit {
+                    preferences -> preferences[PreferencesKeysCurrentSong.CURRENT_SONG_ID] = currentSongID
+            }
         }
     }
     suspend fun updateSource(currentSource: Int, sortOrder: SortOrder, songSortOrder: SongSortOrder){
@@ -138,11 +158,26 @@ class PreferencesManager @Inject constructor(context: Context){
             preferences[PreferencesKeysSourcePrefs.SONG_SORT_ORDER] = songSortOrder.name
         }
     }
+
+    suspend fun updatePlaylistSource(currentSource: Int){
+        dataStoreSourcePrefs.edit {
+                preferences -> preferences[PreferencesKeysSourcePrefs.CURRENT_PLAYLIST_ID] = currentSource
+        }
+    }
+
+
     suspend fun updateShuffleOrder(shuffleOrder: Boolean){
         dataStorePlayModePrefs.edit {
                 preferences -> preferences[PreferencesKeysPlayPrefs.IS_SHUFFLED] = shuffleOrder
         }
     }
+
+    suspend fun updateShuffleSeed(shuffleSeed: Int){
+        dataStorePlayModePrefs.edit {
+                preferences -> preferences[PreferencesKeysPlayPrefs.SHUFFLE_SEED] = shuffleSeed
+        }
+    }
+
     suspend fun updateRepeatMode(repeatMode: RepeatMode){
         dataStorePlayModePrefs.edit {
                 preferences -> preferences[PreferencesKeysPlayPrefs.REPEAT_MODE] = repeatMode.name
@@ -172,6 +207,7 @@ class PreferencesManager @Inject constructor(context: Context){
     }
     private object PreferencesKeysPlayPrefs{
         val IS_SHUFFLED = booleanPreferencesKey("is_shuffled")
+        val SHUFFLE_SEED = intPreferencesKey("shuffle_seed")
         val REPEAT_MODE = stringPreferencesKey("repeat_mode")
         val SONG_SORT_ORDER = stringPreferencesKey("song_sort_order")
         val SORT_ORDER = stringPreferencesKey("sort_order")
