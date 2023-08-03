@@ -1,7 +1,12 @@
 package com.tiesiogdvd.composetest.ui.ytDownload
 
 import android.app.Application
+import android.content.ContentValues
+import android.content.Context
+import android.media.MediaScannerConnection
 import android.os.Environment
+import android.provider.MediaStore
+import androidx.annotation.Keep
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.MutableLiveData
@@ -18,15 +23,14 @@ import com.tiesiogdvd.playlistssongstest.data.MusicDao
 import com.tiesiogdvd.playlistssongstest.data.Playlist
 import com.tiesiogdvd.playlistssongstest.data.Song
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
+@Keep
 data class DownloadableItem(
     val name: String,
     val index: Int = 0,
@@ -37,6 +41,7 @@ data class DownloadableItem(
     var isSelected: MutableStateFlow<Boolean> =  MutableStateFlow(false)
 )
 
+@Keep
 enum class DownloadState(state: String, value: Int){
     SELECTION ("", 0),
     PREPARING ("Preparing", 1),
@@ -61,7 +66,6 @@ class YtDownloadViewModel @Inject constructor(
     val isSelectionBarVisible = MutableStateFlow(false)
 
     val error = MutableStateFlow(ErrorType.NO_ERROR)
-
     val selection = MutableStateFlow(0)
 
     val loading = MutableStateFlow(false)
@@ -69,10 +73,11 @@ class YtDownloadViewModel @Inject constructor(
     lateinit var instance:Python
     lateinit var youtubeDLModule:PyObject
 
-    init {
-        val ffmpegPath = File(context.applicationInfo.nativeLibraryDir+"/lib_ffmpeg.so").absolutePath
-        viewModelScope.launch{
-            if(!Python.isStarted()){
+    val ffmpegPath = File(context.applicationInfo.nativeLibraryDir+"/lib_ffmpeg.so").absolutePath
+
+    private val pythonInit: Deferred<PyObject> by lazy {
+        viewModelScope.async(Dispatchers.Default) {
+            if (!Python.isStarted()) {
                 Python.start(AndroidPlatform(context))
             }
             instance = Python.getInstance()
@@ -84,6 +89,10 @@ class YtDownloadViewModel @Inject constructor(
         }
     }
 
+    init {
+        pythonInit.start()
+    }
+
     fun loadSongsFromLink(){
         println(input.value)
         if(input.value.isNotEmpty() and input.value.isNotBlank()){
@@ -91,6 +100,7 @@ class YtDownloadViewModel @Inject constructor(
             input.value = input.value.replace("\\s".toRegex(), "")
 
             viewModelScope.launch {
+                pythonInit.await()
                 getSongInfo(input.value)
             }
         }
@@ -101,6 +111,15 @@ class YtDownloadViewModel @Inject constructor(
        // val youtubeDLModule = instance.getModule("YoutubeVideoDownloader")
         itemListFlow.value.clear()
         selection.value=0
+        /*val callback = object : Function1<PyObject, Unit> {
+            override fun invoke(info: PyObject) {
+                itemsReceivedCallback(info)
+         D   }
+        }
+        val pythonCallback = callback as Function1<PyObject, Unit>*/
+
+
+        //youtubeDLModule.callAttr("getInfo", url, pythonCallback)
         youtubeDLModule.callAttr("getInfo", url, ::itemsReceivedCallback)
     }
 
@@ -117,6 +136,8 @@ class YtDownloadViewModel @Inject constructor(
         itemListFlow.update { itemList }
     }
 
+
+    @Keep
     fun itemsReceivedCallback(info: PyObject?){  //key and song name
         //items received after entering link
 
@@ -300,17 +321,20 @@ class YtDownloadViewModel @Inject constructor(
         }
     }
 
+    @Keep
     fun itemErrorCallback(string: String){
         val key = string.substringAfterLast("=")
         itemListFlow.value.get(key)?.downloadState?.value = DownloadState.ERROR
     }
 
+    @Keep
     fun updateProgressCallback(id:String, progress: Float){ //key and DownloadState int value
         println("$id has progress of $progress")
             itemListFlow.value.get(id)?.progress?.value = progress
             itemListFlow.value.get(id)?.downloadState?.value = DownloadState.DOWNLOADING
     }
 
+    @Keep
     fun onDownloadProcessedCallback(key:String, filePath:String){ //key and file path
         itemListFlow.value.get(key)?.downloadState?.value = DownloadState.PROCESSING
         if(!File(Environment.getExternalStorageDirectory().absolutePath+"/Music/FlowMusic").exists()){
@@ -351,7 +375,9 @@ class YtDownloadViewModel @Inject constructor(
                 albumArtist = musicData.albumArtist,
                 length = musicData.length.toLong()
             ))
+            MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null) { _, _ -> }
             itemListFlow.value.get(key)?.downloadState?.value = DownloadState.FINISHED
         }
     }
+
 }
