@@ -20,7 +20,6 @@ class AddToPlaylistDialogViewModel @Inject constructor(
     val playlists = musicDao.getPlaylistsWithSongs(false)
     var isAddPlaylistDialogEnabled = mutableStateOf(false)
 
-
     suspend fun isSongInPlaylist(playlist:Playlist,song: Song):Boolean{
         return musicDao.songExistsInPlaylist(song.songPath, playlist.id)
     }
@@ -61,24 +60,26 @@ class AddToPlaylistDialogViewModel @Inject constructor(
         if(songs!=null){
             val songList:ArrayList<Song> = ArrayList()
             for(song in songs){
-                val tempSong = Song(
-                    songName = song.value.songName,
-                    songPath = song.value.songPath,
-                    folder = song.value.folder,
-                    length = song.value.length,
-                    isHidden = song.value.isHidden,
-                    hasBitmap = song.value.hasBitmap,
-                    isBitmapCached = song.value.isBitmapCached,
-                    inFavorites = song.value.inFavorites,
-                    inAllSongs = song.value.inAllSongs,
-                    songArtist = song.value.songArtist,
-                    albumArtist = song.value.albumArtist,
-                    album = song.value.album,
-                    genre = song.value.genre,
-                    trackNumber = song.value.trackNumber,
-                    year = song.value.year,
-                    playlistId = playlistId)
-                songList.add(tempSong)
+                if(!musicDao.songExistsInPlaylist(song.value.songPath, playlistId)){
+                    val tempSong = Song(
+                        songName = song.value.songName,
+                        songPath = song.value.songPath,
+                        folder = song.value.folder,
+                        length = song.value.length,
+                        isHidden = song.value.isHidden,
+                        hasBitmap = song.value.hasBitmap,
+                        isBitmapCached = song.value.isBitmapCached,
+                        inFavorites = song.value.inFavorites,
+                        inAllSongs = song.value.inAllSongs,
+                        songArtist = song.value.songArtist,
+                        albumArtist = song.value.albumArtist,
+                        album = song.value.album,
+                        genre = song.value.genre,
+                        trackNumber = song.value.trackNumber,
+                        year = song.value.year,
+                        playlistId = playlistId)
+                    songList.add(tempSong)
+                }
             }
             musicDao.insertSongsToPlaylist(songList)
         }
