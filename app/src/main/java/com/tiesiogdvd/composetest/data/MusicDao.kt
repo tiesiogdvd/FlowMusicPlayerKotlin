@@ -164,7 +164,7 @@ interface MusicDao {
 
 
 
-    fun getPlaylistSongs(playlistId: Int, query: String, songSortOrder: SongSortOrder, sortOrder: SortOrder, showHidden:Boolean = false): Flow<List<Song>> =
+    suspend fun getPlaylistSongs(playlistId: Int, query: String, songSortOrder: SongSortOrder, sortOrder: SortOrder, showHidden:Boolean = false): Flow<List<Song>> =
         when(sortOrder){
             SortOrder.A_Z -> {
                 when(songSortOrder){
