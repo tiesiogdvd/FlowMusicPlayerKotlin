@@ -22,18 +22,20 @@ import com.tiesiogdvd.composetest.ui.libraryPlaylist.recomposeHighlighter
 import com.tiesiogdvd.composetest.ui.theme.GetThemeColor
 import com.tiesiogdvd.composetest.util.MusicDataMetadata
 import com.tiesiogdvd.composetest.R
+import com.tiesiogdvd.composetest.ui.musicPlayer.MusicPlayerViewModel
 import com.tiesiogdvd.playlistssongstest.data.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Composable
-fun SongItemBar(song: Song, viewModel: NavbarViewModel = hiltViewModel()) {
-    var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(song.songPath) {
+fun SongItemBar(song: Song, viewModel: NavbarViewModel = hiltViewModel(), viewModelPlayer: MusicPlayerViewModel = hiltViewModel()) {
+    //var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+    val bitmap = viewModelPlayer.bitmap.collectAsState().value
+    /*LaunchedEffect(song.songPath) {
         withContext(Dispatchers.IO) {
-            bitmap = MusicDataMetadata.getBitmap(song.songPath)
+        //    bitmap = MusicDataMetadata.getBitmap(song.songPath)
         }
-    }
+    }*/
 
     Surface(
         modifier = Modifier
@@ -48,14 +50,16 @@ fun SongItemBar(song: Song, viewModel: NavbarViewModel = hiltViewModel()) {
         ) {
             Surface(
                 shape = RoundedCornerShape(30.dp),
-                modifier = Modifier.align(Alignment.CenterVertically)
+                modifier = Modifier
+                    .align(Alignment.CenterVertically)
             ) {
                 if (bitmap != null) {
                     Image(
-                        bitmap = bitmap!!,
+                        bitmap = bitmap,
                         contentDescription = "desc",
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(45.dp),
+                        modifier = Modifier
+                            .size(45.dp)
                     )
                 } else {
                     Image(
@@ -91,9 +95,10 @@ fun SongItemBar(song: Song, viewModel: NavbarViewModel = hiltViewModel()) {
                             text = song.songName.toString(),
                             fontSize = 14.sp,
                             color = GetThemeColor.getText(isSystemInDarkTheme()),
-                            modifier = Modifier.wrapContentHeight(
-                                Alignment.Bottom
-                            ),
+                            modifier = Modifier
+                                .wrapContentHeight(
+                                    Alignment.Bottom
+                                ),
                             maxLines = 1
                         )
 
