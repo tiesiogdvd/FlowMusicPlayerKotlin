@@ -17,6 +17,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tiesiogdvd.composetest.R
 import com.tiesiogdvd.composetest.ui.theme.GetThemeColor
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 
@@ -30,7 +31,8 @@ fun SelectionBarComposable(
     selectionType: SelectionType,
     modifier: Modifier = Modifier,
     onItemClick: (SelectionBarItem) -> Unit,
-    onCheckChange: () -> Unit
+    onCheckChange: () -> Unit,
+    onRangeSelected: () -> Unit,
     ){
         Surface(
             modifier = Modifier
@@ -56,8 +58,19 @@ fun SelectionBarComposable(
                         
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 20.dp)) {
                             Checkbox(checked = noOfSelected==totalSize, onCheckedChange = {onCheckChange()}, modifier = Modifier.scale(0.8f))
-                            Text(text = "Select All", fontSize = 14.sp)
+                            Text(text = "Select All", fontSize = 14.sp, modifier = Modifier.clickable { onCheckChange() })
+                            Icon(
+                                painterResource(id = R.drawable.range),
+                                contentDescription = "range",
+                                modifier = Modifier
+                                    .height(22.dp)
+                                    .padding(start = 20.dp)
+                                    .clickable { onRangeSelected() }
+
+                            )
+                            Text(text = "Range", fontSize = 14.sp, modifier = Modifier.clickable { onRangeSelected() })
                         }
+
 
                         Text(text = "Selected $noOfSelected/$totalSize", modifier = Modifier.padding(end = 20.dp), fontSize = 14.sp)
                     }
