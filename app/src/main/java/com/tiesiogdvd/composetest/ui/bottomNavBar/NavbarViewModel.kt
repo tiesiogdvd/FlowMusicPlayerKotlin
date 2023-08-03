@@ -31,11 +31,7 @@ class NavbarViewModel @Inject constructor(
 
 
     fun changePlaybackState(){
-        when(serviceConnector.controller?.isPlaying){
-            true -> {serviceConnector.controller?.pause()}
-            false -> {serviceConnector.controller?.play()}
-            else -> {serviceConnector.controller?.prepare()}
-        }
+        serviceConnector.changePlaybackState()
     }
 
 }
