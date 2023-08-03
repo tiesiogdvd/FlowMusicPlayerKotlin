@@ -2,6 +2,9 @@ package com.tiesiogdvd.playlistssongstest.di
 
 import android.app.Application
 import android.content.Context
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
@@ -11,12 +14,14 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.room.Room
 import com.tiesiogdvd.composetest.data.PreferencesManager
+import com.tiesiogdvd.composetest.data.settings.SettingsManager
 import com.tiesiogdvd.composetest.util.SongDataGetMusicInfo
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
 import com.tiesiogdvd.playlistssongstest.data.MusicDatabase
 import com.tiesiogdvd.composetest.service.MusicSource
 import com.tiesiogdvd.composetest.service.ServiceConnector
 import com.tiesiogdvd.composetest.ui.bottomNavBar.NavbarController
+import com.tiesiogdvd.composetest.ui.musicPlayer.MusicPlayerViewModel
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,8 +30,19 @@ import dagger.hilt.android.scopes.ServiceScoped
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import javax.inject.Inject
 import javax.inject.Qualifier
 import javax.inject.Singleton
+
+
+class CustomViewModelFactory @Inject constructor(
+    val viewModelProviderFactory: ViewModelProvider.Factory
+) {
+    inline fun <reified T : ViewModel> createViewModel(): T {
+        return T::class.java.getConstructor(ViewModelProvider.Factory::class.java)
+            .newInstance(viewModelProviderFactory)
+    }
+}
 
 @UnstableApi @Module
 @InstallIn(SingletonComponent::class)
@@ -34,7 +50,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideServiceConnection(context:Application)= ServiceConnector(context)
+    fun provideServiceConnection(context:Application, preferencesManager: PreferencesManager, musicSource: MusicSource, musicDao: MusicDao)= ServiceConnector(context, preferencesManager, musicSource, musicDao)
 
     @Provides
     @Singleton
@@ -75,6 +91,11 @@ object AppModule {
     fun providePreferencesManager(context: Application)=PreferencesManager(context)
 
 
+    @Singleton
+    @Provides
+    fun provideSettingsManager(context: Application)=SettingsManager(context)
+
+
 
     @Singleton
     @Provides
@@ -107,7 +128,6 @@ object AppModule {
             pauseAtEndOfMediaItems = false
             setForegroundMode(true)
         }
-
 
 }
 
