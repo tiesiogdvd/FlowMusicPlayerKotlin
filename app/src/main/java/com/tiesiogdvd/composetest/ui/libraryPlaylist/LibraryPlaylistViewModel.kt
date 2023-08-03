@@ -12,18 +12,18 @@ import androidx.media3.common.util.UnstableApi
 import com.tiesiogdvd.composetest.data.PreferencesManager
 import com.tiesiogdvd.composetest.data.SongSortOrder
 import com.tiesiogdvd.composetest.data.SortOrder
-import com.tiesiogdvd.composetest.service.MusicSource
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
-import com.tiesiogdvd.playlistssongstest.data.Playlist
 import com.tiesiogdvd.playlistssongstest.data.Song
 import com.tiesiogdvd.composetest.service.ServiceConnector
 import com.tiesiogdvd.composetest.ui.bottomNavBar.NavbarController
 import com.tiesiogdvd.composetest.util.MusicDataMetadata
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.random.Random
 
 data class TaskFilter(
     val sourcePlaylistID: Int,
@@ -38,7 +38,6 @@ class LibraryPlaylistViewModel @Inject constructor(
     val application: Application,
     val preferencesManager: PreferencesManager,
     private val serviceConnector: ServiceConnector,
-    var musicSource: MusicSource,
     val navbarController: NavbarController
 ): ViewModel(){
     var source = MutableStateFlow(-1)
@@ -59,14 +58,15 @@ class LibraryPlaylistViewModel @Inject constructor(
             (playlistId, query, sortOrderParameters, sortOrder) ->
         if(source.value!=-1){
             musicDao.getPlaylistSongs(playlistId,query,sortOrderParameters,sortOrder)
+
         }else{
             emptyFlow()
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     val fullPlaylistFlow = source.flatMapLatest {
         musicDao.getPlaylistSongs(source.value,"", songSortOrder = songSortOrder.value, showHidden = false, sortOrder = sortOrder.value)
-    }
+    }.flowOn(Dispatchers.IO)
 
     val playlist = source.flatMapLatest {
         if(it!=-1){
@@ -74,12 +74,15 @@ class LibraryPlaylistViewModel @Inject constructor(
         }else{
             emptyFlow()
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     var bitmap = MutableStateFlow<ImageBitmap?>(null)
 
-    var songs: List<Song>? = null
+    var songsAll: List<Song>? = null
 
+    var songsSorted: List<Song>? = null
+
+    var currentSongId = MutableStateFlow<Int?>(null)
 
     var isSortDialogShown by mutableStateOf(false)
         private set
@@ -104,13 +107,23 @@ class LibraryPlaylistViewModel @Inject constructor(
 
     init {
         fullPlaylistFlow.asLiveData().observeForever {
-            songs = it
+            songsAll = it
         }
+
+        preferencesManager.currentSongFlow.asLiveData().observeForever{songPreferences->
+            currentSongId.update { songPreferences.currentSongID }
+        }
+
+        playlistFlow.asLiveData().observeForever({
+            println("SOURCE")
+            println("SOURCE")
+            songsSorted = it
+        })
 
         playlist.asLiveData().observeForever({
             val bm = it?.bitmapSource
-            bitmap.update {
-                MusicDataMetadata.getBitmap(bm)
+            viewModelScope.launch {
+                bitmap.update { MusicDataMetadata.getBitmap(bm) }
             }
         })
     }
@@ -164,7 +177,6 @@ class LibraryPlaylistViewModel @Inject constructor(
     }
 
 
-
     fun updateSortOrder(sortOrder: SortOrder){
         this.sortOrder.update { sortOrder }
     }
@@ -182,6 +194,22 @@ class LibraryPlaylistViewModel @Inject constructor(
         }
     }
 
+    fun playFirst(){
+        viewModelScope.launch {
+            onSongSelected(fullPlaylistFlow.first()[0])
+        }
+    }
+
+    fun playMix(){
+        viewModelScope.launch {
+            if(songsAll!=null){
+                val num = songsAll?.size?.let { Random.nextInt(it) }
+                onSongSelected(songsAll!![num!!], shuffle = true)
+            }
+        }
+
+    }
+
     fun toggleSelection(song:Song){
         if(selectionListFlow.value.get(song.id)!=null){
             selectionListFlow.value.remove(song.id)
@@ -192,36 +220,15 @@ class LibraryPlaylistViewModel @Inject constructor(
         }
     }
 
-    suspend fun getPlaylistBitmap(playlist: Playlist): ImageBitmap?{
-        var bitmap: ImageBitmap? = null
-        if (playlist.bitmapSource!=null){
-            if(musicDao.getSong(playlistId = playlist.id, songPath = playlist.bitmapSource)!=null){
-                bitmap = MusicDataMetadata.getBitmap(playlist.bitmapSource)
-            }else{
-                musicDao.setPlaylistBitmapSource(playlist.id,null)
-            }
-        }
-        return bitmap
-    }
 
-    fun onSongSelected(song: Song) {
-        viewModelScope.launch {
-            if (preferencesManager.getCurrentPlaylistID() != source.value || preferencesManager.getCurrentSongSortMode()!= songSortOrder.value || preferencesManager.getCurrentSortMode()!= sortOrder.value) {
-                preferencesManager.updateSource(song.playlistId, sortOrder.value, songSortOrder.value)
-                println("SOURCE CHANGEEEEE")
-            }
-            musicSource.songToPlay = song
-            musicSource.itemIndexById(song.id).let {
-                if (it != null && it != -1) { serviceConnector.controller?.seekTo(it, 0) }
-                serviceConnector.controller?.playWhenReady = true
-            }
-        }
+    fun onSongSelected(song: Song, shuffle:Boolean = false) {
+        serviceConnector.playSongFromPlaylist(song = song, selectedPlaylistID =  source.value, songSortOrder = songSortOrder.value, sortOrder =  sortOrder.value, shuffle = shuffle)
     }
 
     fun toggleSelectAll(){
-        val size = songs?.size
-        if(songs!=null && selection.value!=size){
-            for (song in songs!!){
+        val size = songsAll?.size
+        if(songsAll!=null && selection.value!=size){
+            for (song in songsAll!!){
                 selectionListFlow.value.put(song.id, song)
             }
         }else{
@@ -230,5 +237,54 @@ class LibraryPlaylistViewModel @Inject constructor(
         selection.update { selectionListFlow.value.size }
     }
 
+    fun toggleSelectRange(){
+        val firstItemIndex:Int? = getFirstSelectionIndex()
+        val lastItemIndex:Int? = getLastSelectionIndex()
 
+        if(firstItemIndex!=null && lastItemIndex!=null){
+            println(lastItemIndex-firstItemIndex+1)
+            if((lastItemIndex- firstItemIndex + 1)==selection.value){
+                songsSorted?.forEachIndexed{ index, song ->
+                    if(index > firstItemIndex && index < lastItemIndex){
+                        selectionListFlow.value.remove(song.id)
+                    }
+                }
+            }else{
+                songsSorted?.forEachIndexed{ index, song ->
+                    if(index > firstItemIndex && index < lastItemIndex){
+                        selectionListFlow.value.put(song.id, song)
+                    }
+                }
+            }
+        }
+
+        selection.update { selectionListFlow.value.size }
+
+    }
+
+
+    fun getFirstSelectionIndex():Int?{
+        songsSorted?.forEachIndexed{ index, song ->
+            if(selectionListFlow.value.get(song.id)!=null){
+                println(index)
+                return index
+            }
+        }
+        return null
+    }
+
+    fun getLastSelectionIndex():Int?{
+        songsSorted?.forEachIndexedReversed{ index, song ->
+            if(selectionListFlow.value.get(song.id)!=null){
+                return index
+            }
+        }
+        return null
+    }
+}
+
+
+public inline fun <T> Collection<T>.forEachIndexedReversed(action: (index: Int, T) -> Unit): Unit {
+    var index = this.size-1
+    for (item in this.reversed()) action(index--, item)
 }
