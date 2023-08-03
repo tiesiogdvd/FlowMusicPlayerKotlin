@@ -55,6 +55,9 @@ object GetThemeColor {
         return if (isSystemInDarkMode) loadingDark else loading
     }
 
+    fun getSettingsPrimary(isSystemInDarkMode: Boolean): Color{
+        return if (isSystemInDarkMode) settingsPrimary else settingsPrimaryDark
+    }
     fun waveProgress(isSystemInDarkMode: Boolean): Color{
         return if (isSystemInDarkMode) waveProgressDark else waveProgress
     }
