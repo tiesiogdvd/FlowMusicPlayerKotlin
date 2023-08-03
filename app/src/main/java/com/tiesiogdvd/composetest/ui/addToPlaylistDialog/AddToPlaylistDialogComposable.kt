@@ -1,10 +1,16 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package com.tiesiogdvd.composetest.ui.addToPlaylistDialog
 
+import android.content.res.Resources.Theme
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.*
@@ -21,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.tiesiogdvd.composetest.R
 import com.tiesiogdvd.composetest.ui.addPlaylistDialog.AddPlaylistDialog
 import com.tiesiogdvd.composetest.ui.theme.GetThemeColor
+import com.tiesiogdvd.composetest.ui.theme.Transitions
 import com.tiesiogdvd.playlistssongstest.data.Playlist
 import com.tiesiogdvd.playlistssongstest.data.Song
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,6 +51,7 @@ fun AddToPlaylistDialog(
                 modifier = Modifier
                     .fillMaxWidth(0.8F)
                     .height(400.dp)
+                    .wrapContentHeight()
             ) {
                 Column(modifier = Modifier
                     .fillMaxWidth()
@@ -90,7 +98,17 @@ fun AddToPlaylistDialog(
                                 isSelected = viewModel.isSongInPlaylist(playlist.playlist, songs.values.first())
                             }
                         }
-                        PlaylistItem(playlist = playlist.playlist, onToggle = { viewModel.toggleAddStatus(playlistId = playlist.playlist.id, songs, isSelected) }, isSelected = isSelected)
+                        Column(
+                            modifier = Modifier
+                                .wrapContentHeight()
+                                .animateItemPlacement(animationSpec = tween(durationMillis = 300))
+                                .fillMaxWidth(), verticalArrangement = Arrangement.Center
+                        ) {
+                            PlaylistItem(playlist = playlist.playlist, onToggle = { viewModel.toggleAddStatus(playlistId = playlist.playlist.id, songs, isSelected) }, isSelected = isSelected, if(songs.size==1){true}else{false})
+                        }
+
+
+
                     }
                 })
             }
@@ -106,21 +124,22 @@ fun PlaylistItem(
     playlist: Playlist,
     onToggle: () -> Unit,
     isSelected: Boolean,
+    showCheckBox: Boolean
 ){
-    Column(modifier = Modifier
-        .wrapContentHeight()
-        .fillMaxWidth(), verticalArrangement = Arrangement.Center) {
-        Surface(shape = RoundedCornerShape(10.dp), modifier = Modifier.padding(bottom = 5.dp).clickable { onToggle() }, color = GetThemeColor.getBackground(isSystemInDarkTheme()).copy(0.5f)) {
-            Row(verticalAlignment = CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text(text = playlist.playlistName, textAlign = TextAlign.Center, modifier = Modifier.padding(start = 5.dp))
+    Surface(shape = RoundedCornerShape(10.dp), modifier = Modifier
+        .padding(bottom = 5.dp)
+        .clickable { onToggle() }, color = GetThemeColor.getBackground(isSystemInDarkTheme()).copy(0.5f)) {
+        Row(verticalAlignment = CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)) {
+            Text(text = playlist.playlistName, textAlign = TextAlign.Center, modifier = Modifier.padding(start = 5.dp))
+            if(showCheckBox){
                 Checkbox(checked = isSelected, enabled = true , onCheckedChange = {onToggle()}, modifier = Modifier
                     .align(CenterVertically)
                     .scale(0.7f)
                     .padding(end = 2.dp))
             }
         }
-
-
     }
 
 }
