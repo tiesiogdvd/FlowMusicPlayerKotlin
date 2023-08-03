@@ -21,8 +21,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -72,7 +76,7 @@ fun LibraryPlaylistsScreen(navigator: DestinationsNavigator, viewModel: LibraryP
                                 "Add to playlist" -> viewModel.openPlaylistsDialog()
                                 else -> println("haha")
                             }
-                        }, onCheckChange = {viewModel.toggleSelectAll()}, noOfSelected = selectionListSize, totalSize = totalSize)
+                        }, onCheckChange = {viewModel.toggleSelectAll()}, noOfSelected = selectionListSize, totalSize = totalSize, onRangeSelected = {})
                 }
             }
         }, content = {
@@ -102,6 +106,18 @@ fun PlaylistList(
     navigator: DestinationsNavigator,
     viewModel: LibraryPlaylistsViewModel = hiltViewModel()
 ){
+
+    val scrollOffset = remember {mutableStateOf(0f)}
+    val headerScrollConnection = remember{
+        object: NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val deltaY = available.y
+                scrollOffset.value += deltaY * 0.5f // Change 0.5f to adjust the parallax speed
+                println(scrollOffset)
+                return super.onPreScroll(available, source)
+            }
+        }
+    }
 
     val playlistsWithSongs = viewModel.playlistFlow.collectAsState(initial = listOf()).value
     val isSelectionBarVisible = viewModel.isSelectionBarVisible.collectAsState().value
@@ -136,15 +152,18 @@ fun PlaylistList(
     }, enabled = isSelectionBarVisible)
 
     LazyColumn(modifier = Modifier
+        .nestedScroll(headerScrollConnection)
         .wrapContentHeight()){
         item {
-            Header(bitmapSource = viewModel.bitmap, headerName = "Playlists")
+            Header(bitmapSource = viewModel.bitmap, headerName = "Playlists", scrollOffsetY = scrollOffset)
         }
 
         stickyHeader {
             HeaderOptions(
                 onOpenSortDialog = { viewModel.openSortDialog() },
-                text = viewModel.searchQuery
+                text = viewModel.searchQuery,
+                onClickPlay = {},
+                onClickMix = {}
             )
         }
 
@@ -202,8 +221,11 @@ fun PlaylistList(
 fun PlaylistItem(
     playlistWithSongs: PlaylistWithSongs,
     isSelected: Boolean,
+    libraryPlaylistsViewModel: LibraryPlaylistsViewModel = hiltViewModel()
 ){
     var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+
+    //var bitmap = libraryPlaylistsViewModel.bitmap.collectAsState().value
 
     val initialColor = if(!isSelected){GetThemeColor.getButton(isSystemInDarkTheme())}else{GetThemeColor.getPurple(isSystemInDarkTheme())}
     var surfaceColor by remember { mutableStateOf(initialColor) }
@@ -231,7 +253,9 @@ fun PlaylistItem(
         Row(
             modifier = Modifier,
         ) {
-            Surface(shape = RoundedCornerShape(30.dp), modifier = Modifier.align(Alignment.CenterVertically).height(80.dp)) {
+            Surface(shape = RoundedCornerShape(30.dp), modifier = Modifier
+                .align(Alignment.CenterVertically)
+                .height(80.dp)) {
                 if (bitmap != null) {
                     Image(
                         bitmap = bitmap!!,
@@ -264,7 +288,8 @@ fun PlaylistItem(
                     .padding(start = 15.dp)
                     .align(Alignment.CenterVertically)
                     .fillMaxWidth()) {
-                    Column(modifier = Modifier.fillMaxWidth(0.6f)
+                    Column(modifier = Modifier
+                        .fillMaxWidth(0.6f)
                         .align(Alignment.CenterVertically)) {
                         Text(text = playlistWithSongs.playlist.playlistName, fontSize = 14.sp, color = if(isSelected){GetThemeColor.getText(!isSystemInDarkTheme())} else {GetThemeColor.getText(isSystemInDarkTheme())}, modifier = Modifier.wrapContentHeight(
                             Alignment.Bottom))
