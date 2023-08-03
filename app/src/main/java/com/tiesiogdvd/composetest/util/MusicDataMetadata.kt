@@ -8,6 +8,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.net.toFile
 import com.tiesiogdvd.composetest.util.TypeConverter.formatDuration
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.IOException
 
 //This class implements storing music data and creates methods to retrieve Metadata from it
@@ -88,24 +90,25 @@ class MusicDataMetadata {
     }
 
     companion object {
-        fun getBitmap(path: String?): ImageBitmap? {
+        suspend fun getBitmap(path: String?): ImageBitmap? = withContext(Dispatchers.Default){
             val mr = MediaMetadataRetriever()
             try {
                 mr.setDataSource(path)
                 val data = mr.embeddedPicture
                 val bitmap = data?.let { BitmapFactory.decodeByteArray(data, 0, it.size) }
                 mr.release()
-                return bitmap?.asImageBitmap()
+                return@withContext bitmap?.asImageBitmap()
             } catch (e: Exception) {
                 try {
                     mr.release()
                 } catch (ex: IOException) {
                     throw RuntimeException(ex)
                 }
-                return null
+                return@withContext null
             }
         }
     }
+
 
         fun getBitmap(uri: Uri?): Bitmap? {
             val mr = MediaMetadataRetriever()
