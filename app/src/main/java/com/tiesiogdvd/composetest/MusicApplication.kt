@@ -4,6 +4,7 @@ import android.app.Application
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.os.Build
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import dagger.hilt.android.HiltAndroidApp
@@ -24,8 +25,12 @@ class MusicApplication : Application(){
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
-        CoroutineScope(Dispatchers.IO).launch {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            createNotificationChannel()
+        }
+
+
+        CoroutineScope(Dispatchers.Default).launch {
             Python.start(AndroidPlatform(applicationContext))
         }
     }
@@ -34,6 +39,8 @@ class MusicApplication : Application(){
     private fun createNotificationChannel() {
         println("CREATING")
         val serviceChannel1 = NotificationChannel(CHANNEL_ID_1, "MP Channel 1", NotificationManager.IMPORTANCE_HIGH)
+
+
         serviceChannel1.description = "MP Channel 1 description"
         serviceChannel1.setSound(null, null)
         serviceChannel1.vibrationPattern = null
