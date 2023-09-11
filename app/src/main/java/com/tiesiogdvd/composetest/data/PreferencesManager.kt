@@ -16,27 +16,27 @@ import javax.inject.Singleton
 
 private const val TAG = "PreferencesManager"
 
-enum class SongSortOrder(val songSortOrderText: String){
-    BY_NAME("Name"),
-    BY_ARTIST("Artist"),
-    BY_ALBUM_ARTIST("Album Artist"),
-    BY_ALBUM("Album"),
-    BY_GENRE("Genre"),
-    BY_TRACK_NUMBER("Track number"),
-    BY_YEAR("Year"),
-    BY_LENGTH("Length"),
-    BY_FOLDER("Folder"),
-    BY_ADDED_TO_PLAYLIST("Date added")
+enum class SongSortOrder(val songSortOrderText: String, val key:String){
+    BY_NAME("Name", "songName"),
+    BY_ARTIST("Artist", "length"),
+    BY_ALBUM_ARTIST("Album Artist" ,"albumArtist"),
+    BY_ALBUM("Album","album"),
+    BY_GENRE("Genre","genre"),
+    BY_TRACK_NUMBER("Track number","trackNumber"),
+    BY_YEAR("Year","year"),
+    BY_LENGTH("Length","length"),
+    BY_FOLDER("Folder","folder"),
+    BY_ADDED_TO_PLAYLIST("Date added","created")
 }
-enum class SortOrder(val sortOrderText: String){
-    A_Z ("A-Z"),
-    Z_A ("Z-A")
+enum class SortOrder(val sortOrderText: String, val key:String){
+    A_Z ("A-Z", "ASC"),
+    Z_A ("Z-A", "DESC")
 }
 
-enum class PlaylistSortOrder(val playlistSortOrderText: String){
-    BY_NAME("Name"),
-    BY_DATE_CREATED("Date Created"),
-    BY_DATE_UPDATED("Date Updated")
+enum class PlaylistSortOrder(val playlistSortOrderText: String, val key:String){
+    BY_NAME("Name","playlistName"),
+    BY_DATE_CREATED("Date Created","created"),
+    BY_DATE_UPDATED("Date Updated","updated")
 }
 
 enum class RepeatMode{
