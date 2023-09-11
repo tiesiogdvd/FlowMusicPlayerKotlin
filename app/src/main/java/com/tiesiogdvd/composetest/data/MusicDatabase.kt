@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.tiesiogdvd.composetest.data.PlaylistSongCrossRef
 import com.tiesiogdvd.composetest.util.SongDataGetMusicInfo
 import com.tiesiogdvd.playlistssongstest.di.SingletonComponentScope
 import kotlinx.coroutines.CoroutineScope
@@ -11,7 +12,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Provider
 
-@Database(entities = [Playlist::class, Song::class], version = 2)
+@Database(entities = [Playlist::class, Song::class, PlaylistSongCrossRef::class], version = 2)
 abstract class MusicDatabase : RoomDatabase() {
 
     abstract fun musicDao():MusicDao
