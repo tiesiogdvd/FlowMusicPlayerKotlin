@@ -1,19 +1,16 @@
 package com.tiesiogdvd.composetest.service
 
+import GeniusResponse
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.util.Log
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.asLiveData
-import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -30,13 +27,13 @@ import com.tiesiogdvd.composetest.data.PreferencesManager
 import com.tiesiogdvd.composetest.data.SongSortOrder
 import com.tiesiogdvd.composetest.data.SortOrder
 import com.tiesiogdvd.composetest.jniMethods.AudioFlux
-import com.tiesiogdvd.composetest.ui.libraryPlaylist.BitmapLoader
+import com.tiesiogdvd.composetest.util.BitmapLoader
 import com.tiesiogdvd.composetest.util.BitmapPalette
 import com.tiesiogdvd.composetest.util.ImagePalette
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
 import com.tiesiogdvd.playlistssongstest.data.Song
-import fetchLyrics4
-import getAudioFloatArray
+import fetchGeniusResponse
+import fetchLyrics
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.io.File
@@ -74,8 +71,14 @@ import kotlin.random.Random
     var bitmap = MutableStateFlow<ImageBitmap?>(null)
     var palette = MutableStateFlow<ImagePalette?>(BitmapPalette.defaultPalette())
 
+    val prevSongData = MutableStateFlow<Song?>(null)
+
     val currentSongData = MutableStateFlow<Song?>(null)
+
     val currentSongLyrics = MutableStateFlow<String?>(null)
+    val currentSongGeniusResponse = MutableStateFlow<GeniusResponse?>(null)
+    val currentResponseIndex = MutableStateFlow<Int?>(null)
+    val currentHitsNumber = MutableStateFlow<Int?>(null)
 
     val currentSongFloatArray = MutableStateFlow<FloatArray?>(null)
 
@@ -90,6 +93,8 @@ import kotlin.random.Random
 
     val curSongList = MutableStateFlow<List<Song>?>(null)
     var curShuffleList = MutableStateFlow<List<Int>>(emptyList())
+
+    val repeatMode = MutableStateFlow<Int>(Player.REPEAT_MODE_OFF)
 
 
     val playerScreenSettings = preferencesManager.currentPlayModeFlow
@@ -108,7 +113,6 @@ import kotlin.random.Random
             val prefs = it.first
             val seed = it.second
             val songs = it.third
-
             shuffleStatus.value = prefs.isShuffleEnabled
             curShuffleList.value = getShuffleOrder(songs.size, seed)
         }
@@ -121,7 +125,8 @@ import kotlin.random.Random
         currentSource.asLiveData().observeForever{
             currentSongData.value = it
             println("updating song connector ${this}")
-            if(it!=null){
+            if(it!=null && it.songPath!=prevSongData.value?.songPath){
+                prevSongData.value=it
                 loadSongInfo(it)
             }
         }
@@ -157,6 +162,7 @@ import kotlin.random.Random
         }
     }
     private fun loadSongInfo(song:Song){
+
         job2?.cancel()
         job2 = coroutineScope.launch {
             if(song.songPath!=null){
@@ -164,7 +170,15 @@ import kotlin.random.Random
                 bitmap.value = result
                 palette.value = BitmapPalette().generatePalette(bitmap.value, isDarkTheme = isSystemInDarkTheme())
             }
-            currentSongLyrics.value = fetchLyrics4(song.songArtist?:"", song.songName?:"")
+
+            currentSongGeniusResponse.value = fetchGeniusResponse(song.songArtist?:"",song.songName?:"")
+            println("LOADING LYRICS ${song.songPath} ${currentSongGeniusResponse.value?.hits?.size}")
+            if(currentSongGeniusResponse.value!=null && currentSongGeniusResponse.value!!.hits.size!=0){
+                currentSongLyrics.value=fetchLyrics(currentSongGeniusResponse.value!!,0)
+                currentResponseIndex.value=0
+                currentHitsNumber.value = currentSongGeniusResponse.value!!.hits.size
+            }
+            //currentSongLyrics.value = fetchLyrics4(song.songArtist?:"", song.songName?:"")
             //currentSongFloatArray.value = getAudioFloatArray(song.songPath)
 
             //printAvailableJniLibs(context)
@@ -181,6 +195,33 @@ import kotlin.random.Random
             } else {
                 currentSongLyrics.value = null
                 println("No lyrics")
+            }
+        }
+    }
+    fun loadLyricsIndex(index:Int){
+        job2?.cancel()
+        job2 = coroutineScope.launch {
+            if (currentSongGeniusResponse.value != null && currentSongGeniusResponse.value!!.hits.size > 0) {
+                currentSongLyrics.value = fetchLyrics(currentSongGeniusResponse.value!!, index)
+                currentResponseIndex.value = index
+                //currentHitsNumber.value = currentSongGeniusResponse.value!!.hits.size
+            }
+        }
+    }
+
+    fun toggleRepeatModes(){
+        when(controller?.repeatMode){
+            Player.REPEAT_MODE_ONE -> {
+                controller?.repeatMode = Player.REPEAT_MODE_ALL
+                repeatMode.value = Player.REPEAT_MODE_ALL
+            }
+            Player.REPEAT_MODE_ALL -> {
+                controller?.repeatMode = Player.REPEAT_MODE_OFF
+                repeatMode.value = Player.REPEAT_MODE_OFF
+            }
+            Player.REPEAT_MODE_OFF -> {
+                controller?.repeatMode = Player.REPEAT_MODE_ONE
+                repeatMode.value = Player.REPEAT_MODE_ONE
             }
         }
     }
@@ -310,10 +351,10 @@ import kotlin.random.Random
     }
 
 
-    fun playSongFromPlaylist(song: Song, selectedPlaylistID:Int, songSortOrder:SongSortOrder, sortOrder: SortOrder, shuffle:Boolean = false) {
+    fun playSongFromPlaylist(playlistId:Int,song: Song, selectedPlaylistID:Int, songSortOrder:SongSortOrder, sortOrder: SortOrder, shuffle:Boolean = false) {
         connectorScope.launch {
             if (preferencesManager.getCurrentPlaylistID() != selectedPlaylistID || preferencesManager.getCurrentSongSortMode()!= songSortOrder || preferencesManager.getCurrentSortMode()!= sortOrder) {
-                preferencesManager.updateSource(song.playlistId, sortOrder, songSortOrder)
+                preferencesManager.updateSource(playlistId, sortOrder, songSortOrder)
                 println("SOURCE CHANGEEEEE")
             }
             musicSource.songToPlay = song

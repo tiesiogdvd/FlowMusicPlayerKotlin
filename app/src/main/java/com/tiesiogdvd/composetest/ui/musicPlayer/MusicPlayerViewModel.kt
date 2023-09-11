@@ -1,49 +1,35 @@
 package com.tiesiogdvd.composetest.ui.musicPlayer
 
-import android.app.Application
 import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.pager.PagerState
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.ShuffleOrder
 import com.tiesiogdvd.composetest.data.PreferencesManager
 import com.tiesiogdvd.composetest.data.settings.SettingsManager
 import com.tiesiogdvd.composetest.service.MusicSource
 import com.tiesiogdvd.composetest.service.ServiceConnector
-import com.tiesiogdvd.composetest.ui.libraryPlaylist.BitmapLoader
-import com.tiesiogdvd.composetest.util.AudioAmplitudes
-import com.tiesiogdvd.composetest.util.convertListToArray
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
+import com.tiesiogdvd.playlistssongstest.data.Playlist
 import com.tiesiogdvd.playlistssongstest.data.Song
-import dagger.Provides
 import dagger.hilt.android.lifecycle.HiltViewModel
 
-import fetchLyrics4
-import fetchLyricsWithKtor
-import fetchLyricsWithKtor2
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import linc.com.amplituda.*
-import linc.com.amplituda.exceptions.AmplitudaException
-import okhttp3.internal.wait
-import java.io.File
 import javax.inject.Inject
-import javax.inject.Singleton
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalCoroutinesApi::class)
 @UnstableApi @HiltViewModel
 class MusicPlayerViewModel @Inject constructor(
     private val serviceConnector: ServiceConnector,
     private val musicSource: MusicSource,
     private val settingsManager: SettingsManager,
     private val preferencesManager: PreferencesManager,
+    private val musicDao: MusicDao
 
     ):ViewModel(){
     val currentPosition = MutableStateFlow(0)
@@ -53,17 +39,26 @@ class MusicPlayerViewModel @Inject constructor(
 
     val songsList = musicSource.sourcePlaylist
 
-    val songsList2 = serviceConnector.curSongList
-
     val shuffleList = serviceConnector.curShuffleList
 
     val curSongIndex = serviceConnector.curSongIndex
 
-    val curSongLyrics = serviceConnector.currentSongLyrics
 
     val playerScreenSettings = settingsManager.playerSettingsFlow
 
     val shuffleStatus = serviceConnector.shuffleStatus
+
+    val repeatMode = serviceConnector.repeatMode
+
+    val playlistMenuEnabled = mutableStateOf(false)
+
+    val isSongInFavorites = mutableStateOf(false)
+
+
+    val curSongLyrics = serviceConnector.currentSongLyrics
+    val curLyricsIndex = serviceConnector.currentResponseIndex
+    val totalLyricsCount = serviceConnector.currentHitsNumber
+
 
     @OptIn(ExperimentalFoundationApi::class)
     var pagerState = PagerState(initialPage = curSongIndex.value?: indexFromMusicSource()?:0, initialPageOffsetFraction = 0f)
@@ -74,13 +69,52 @@ class MusicPlayerViewModel @Inject constructor(
 
     var songDelayJob: Job? = null
     private val songDelayScope = CoroutineScope(Dispatchers.IO)
+
+    init {
+        viewModelScope.launch {
+            println("collector")
+            if(!musicDao.playlistExists("Favorites")){
+                musicDao.insertPlaylist(Playlist("Favorites", isHidden = true))
+            }
+
+            currentSource.collect {curSong ->
+                if(curSong!=null){
+                    isSongInFavorites.value = musicDao.songExistsInPlaylist(songId = curSong.id, playlistId = musicDao.getPlaylist("Favorites").id)
+                }
+            }
+        }
+    }
+
+
+    fun toggleRepeatMode(){
+        serviceConnector.toggleRepeatModes()
+    }
+    fun togglePlaylistMenu(){
+        if(playlistMenuEnabled.value == true){
+            playlistMenuEnabled.value = false
+        }else{
+            playlistMenuEnabled.value = true
+        }
+    }
+
+    fun toggleFavorite(song: Song){
+        viewModelScope.launch {
+            val playlist = musicDao.getPlaylist("Favorites")
+            if(musicDao.songExistsInPlaylist(songId = song.id, playlistId = playlist.id)){
+                musicDao.removeSongFromPlaylist(playlistId = playlist.id, song = song)
+            }else{
+                musicDao.insertSongToPlaylist(song = song, playlistId = playlist.id)
+                Log.d("colector", "inserting ${song.songName}")
+            }
+        }
+    }
+
     fun indexFromMusicSource():Int? = musicSource.currentSongIndex
 
     fun seekToPosition(position: Long){
         serviceConnector.seekTo(position)
     }
     fun getSongIndex(song:Song?):Int? = musicSource.itemIndexById(song?.id)
-
 
     fun changePlaybackState(){
         serviceConnector.changePlaybackState()
@@ -144,5 +178,7 @@ class MusicPlayerViewModel @Inject constructor(
 
     fun getCurrentPosition():Long = serviceConnector.getPosition()
 
-
+    fun loadLyricsIndex(index: Int){
+        serviceConnector.loadLyricsIndex(index)
+    }
 }
