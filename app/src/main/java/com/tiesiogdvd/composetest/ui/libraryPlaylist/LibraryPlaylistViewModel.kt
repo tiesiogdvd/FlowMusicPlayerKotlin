@@ -40,7 +40,7 @@ class LibraryPlaylistViewModel @Inject constructor(
     private val serviceConnector: ServiceConnector,
     val navbarController: NavbarController
 ): ViewModel(){
-    var source = MutableStateFlow(-1)
+    var playlistId = MutableStateFlow(-1)
     val searchQuery = MutableStateFlow("")
     val songSortOrder = MutableStateFlow(SongSortOrder.BY_NAME)
     val sortOrder = MutableStateFlow(SortOrder.A_Z)
@@ -52,23 +52,23 @@ class LibraryPlaylistViewModel @Inject constructor(
 
     val selectionListFlow = MutableStateFlow(HashMap<Int,Song>())
 
-    val playlistFlow = combine(source,searchQuery,songSortOrder,sortOrder){
+    val playlistFlow = combine(playlistId,searchQuery,songSortOrder,sortOrder){
             playlistId,query, sortOrderParameters, sortOrder -> TaskFilter(playlistId,query, sortOrderParameters, sortOrder)
     }.flatMapLatest {
             (playlistId, query, sortOrderParameters, sortOrder) ->
-        if(source.value!=-1){
+        if(this.playlistId.value!=-1){
+            //musicDao.getPlaylistWithSongs(showHidden = false, query = query, sortOrder = sortOrder, songSortOrder = sortOrderParameters, playlistId = playlistId)
             musicDao.getPlaylistSongs(playlistId,query,sortOrderParameters,sortOrder)
-
         }else{
             emptyFlow()
         }
     }.flowOn(Dispatchers.IO)
 
-    val fullPlaylistFlow = source.flatMapLatest {
-        musicDao.getPlaylistSongs(source.value,"", songSortOrder = songSortOrder.value, showHidden = false, sortOrder = sortOrder.value)
+    val fullPlaylistFlow = playlistId.flatMapLatest {
+        musicDao.getPlaylistSongs(playlistId.value,"", songSortOrder = songSortOrder.value, showHidden = false, sortOrder = sortOrder.value)
     }.flowOn(Dispatchers.IO)
 
-    val playlist = source.flatMapLatest {
+    val playlist = playlistId.flatMapLatest {
         if(it!=-1){
             musicDao.getPlaylist(it)
         }else{
@@ -135,7 +135,7 @@ class LibraryPlaylistViewModel @Inject constructor(
         }
         if(songsArrayList.size!=0){
             viewModelScope.launch {
-                musicDao.removeSongs(songsArrayList)
+                musicDao.removeSongsFromPlaylist(songs = songsArrayList, playlistId = playlistId.value)
                 selectionListFlow.value.clear()
                 selection.update { selectionListFlow.value.size }
             }
@@ -149,7 +149,7 @@ class LibraryPlaylistViewModel @Inject constructor(
         }
         if(songsArrayList.size!=0){
             viewModelScope.launch {
-                musicDao.setAreSongsHidden(songsArrayList, isHidden = true)
+                musicDao.setAreSongsHidden(songsArrayList, isHidden = true, playlistId = playlistId.value)
                 selectionListFlow.value.clear()
                 selection.update { selectionListFlow.value.size }
             }
@@ -161,7 +161,7 @@ class LibraryPlaylistViewModel @Inject constructor(
         viewModelScope.launch {
             if(selection.value==1){
                 val song = selectionListFlow.value.values.first()
-                musicDao.setPlaylistBitmapSource(song.playlistId, song.songPath)
+                musicDao.setPlaylistBitmapSource(playlistId = playlistId.value, song.songPath)
             }
         }
     }
@@ -188,9 +188,9 @@ class LibraryPlaylistViewModel @Inject constructor(
         searchQuery.update { string }
     }
     fun setSource(playlistId: Int){
-        if(playlistId!=source.value || playlistId!=-1){
+        if(playlistId!= this.playlistId.value || playlistId!=-1){
             println("SOURCE SET $playlistId")
-            source.update { playlistId }
+            this.playlistId.update { playlistId }
         }
     }
 
@@ -202,7 +202,7 @@ class LibraryPlaylistViewModel @Inject constructor(
 
     fun playMix(){
         viewModelScope.launch {
-            if(songsAll!=null){
+            if(songsAll!=null && songsAll!!.size!=0){
                 val num = songsAll?.size?.let { Random.nextInt(it) }
                 onSongSelected(songsAll!![num!!], shuffle = true)
             }
@@ -222,7 +222,7 @@ class LibraryPlaylistViewModel @Inject constructor(
 
 
     fun onSongSelected(song: Song, shuffle:Boolean = false) {
-        serviceConnector.playSongFromPlaylist(song = song, selectedPlaylistID =  source.value, songSortOrder = songSortOrder.value, sortOrder =  sortOrder.value, shuffle = shuffle)
+        serviceConnector.playSongFromPlaylist(playlistId = playlistId.value,song = song, selectedPlaylistID =  playlistId.value, songSortOrder = songSortOrder.value, sortOrder =  sortOrder.value, shuffle = shuffle)
     }
 
     fun toggleSelectAll(){
