@@ -1,10 +1,15 @@
 package com.tiesiogdvd.playlistssongstest.data
 
 import androidx.room.*
+import androidx.sqlite.db.SimpleSQLiteQuery
+import androidx.sqlite.db.SupportSQLiteQuery
+import com.tiesiogdvd.composetest.data.PlaylistSongCrossRef
 import com.tiesiogdvd.composetest.data.PlaylistSortOrder
 import com.tiesiogdvd.composetest.data.SongSortOrder
 import com.tiesiogdvd.composetest.data.SortOrder
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 
 @Dao
 interface MusicDao {
@@ -13,60 +18,89 @@ interface MusicDao {
     suspend fun insertPlaylist(playlist: Playlist)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertSongsListQuery(songs:List<Song>)
-    suspend fun insertSongsList(songs:List<Song>){
-        insertSongsListQuery(songs)
-        if(songs.size!=0){updatePlaylistModifiedDate(songs.get(0).playlistId)}
+    suspend fun insertSongsListToPlaylistQuery(songs:List<PlaylistSongCrossRef>)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSongs(songs:List<Song>): List<Long>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSong(song:Song)
+
+    suspend fun insertSongsToPlaylist(songs:ArrayList<Song>, playlistId: Int){
+        val m_songs = songs.distinctBy{it.songPath}
+        if(m_songs.size!=0){
+            val list = arrayListOf<PlaylistSongCrossRef>()
+            songs.forEach{song ->
+                list.add(PlaylistSongCrossRef(playlistId = playlistId, songId = song.id))
+            }
+            println("Inserting SONGS QUERY")
+            songs.forEach{ println(it.songName)}
+            insertSongsListToPlaylistQuery(list)
+            updatePlaylistModifiedDate(playlistId = playlistId)
+        }
     }
+
+    suspend fun insertSongsToPlaylist(playlistId: Int,songIds:List<Long>){
+        val m_songs = songIds.distinctBy{it}
+        if(m_songs.size!=0){
+            val list = arrayListOf<PlaylistSongCrossRef>()
+            songIds.forEach{ songId ->
+                list.add(PlaylistSongCrossRef(playlistId = playlistId, songId = songId.toInt()))
+            }
+            insertSongsListToPlaylistQuery(list)
+            updatePlaylistModifiedDate(playlistId = playlistId)
+        }
+    }
+
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSongQuery(song: Song)
-    suspend fun insertSong(song:Song){
-        insertSongQuery(song)
-        updatePlaylistModifiedDate(song.playlistId)
-    }
+    suspend fun insertSongToPlaylistQuery(playlistSongCrossRef: PlaylistSongCrossRef)
 
     suspend fun insertSongToPlaylist(song:Song, playlistId: Int){
-        val tempSong = song.copy(playlistId =  playlistId)
-        insertSong(tempSong)
-    }
-
-    suspend fun insertSongsToPlaylist(songs:ArrayList<Song>){
-        val m_songs = songs.distinctBy{it.songPath}
-        insertSongsList(m_songs)
-
+        insertSongToPlaylistQuery(PlaylistSongCrossRef(playlistId = playlistId, songId = song.id))
+        updatePlaylistModifiedDate(playlistId = playlistId)
     }
 
 
-    @Query("SELECT * FROM songs_table")
-    fun getSongs(): Flow<List<Song>>
 
     @Query("SELECT * FROM songs_table WHERE id = :songId")
     fun getSongFromId(songId:Int): Flow<Song>?
 
-    @Query("SELECT * FROM songs_table WHERE songPath = :songPath AND playlistId= :playlistId")
-    suspend fun getSong(songPath:String, playlistId: Int): Song?
+    @Query("SELECT * FROM songs_table WHERE songPath = :songPath")
+    suspend fun getSong(songPath: String): Song?
 
-    @Query("SELECT EXISTS(SELECT * FROM songs_table WHERE songPath =:songPath AND playlistId =:playlistId)")
-    suspend fun songExistsInPlaylist(songPath: String, playlistId:Int): Boolean
+    @Query("SELECT EXISTS (SELECT * FROM songs_table WHERE songPath = :songPath)")
+    suspend fun songExists(songPath:String): Boolean?
+
+    @Query("SELECT EXISTS(SELECT * FROM playlist_song_cross_reference WHERE songId =:songId AND playlistId =:playlistId)")
+    suspend fun songExistsInPlaylist(songId:Int, playlistId:Int): Boolean
+
 
     @Query("UPDATE songs_table SET hasBitmap = :hasImage WHERE id = :songId")
     suspend fun setSongHasImage(songId: Int, hasImage: Boolean)
 
-    suspend fun removeSongs(songs: ArrayList<Song>){
+
+    suspend fun removeSongsFromPlaylist(playlistId: Int, songs: ArrayList<Song>){
         if (songs.isNotEmpty()) {
-            removeSongsQuery(songs)
-            updatePlaylistModifiedDate(songs.get(0).playlistId)
+            for(song in songs){
+                removeSongFromPlaylistQuery(playlistId, song.id)
+            }
+            updatePlaylistModifiedDate(playlistId)
         }
     }
-    @Delete
-    suspend fun removeSongsQuery(songs: ArrayList<Song>)
+    suspend fun removeSongFromPlaylist(playlistId: Int,song: Song){
+        removeSongFromPlaylistQuery(playlistId = playlistId, songId = song.id)
+        updatePlaylistModifiedDate(playlistId = playlistId)
+    }
+    @Query("DELETE FROM playlist_song_cross_reference WHERE playlistId = :playlistId AND songId = :songId")
+    suspend fun removeSongFromPlaylistQuery(playlistId: Int, songId: Int)
 
-    suspend fun setAreSongsHidden(songs: ArrayList<Song>, isHidden: Boolean) {
+
+    suspend fun setAreSongsHidden(songs: ArrayList<Song>, isHidden: Boolean, playlistId: Int) {
         if (songs.isNotEmpty()) {
             val songIds = songs.map { it.id }
             setAreSongsHiddenQuery(songIds, isHidden)
-            updatePlaylistModifiedDate(songs.get(0).playlistId)
+            updatePlaylistModifiedDate(playlistId = playlistId)
         }
     }
     @Query("UPDATE songs_table SET isHidden = :isHidden WHERE id IN (:songIds)")
@@ -82,8 +116,16 @@ interface MusicDao {
     @Query("SELECT * FROM playlist_table WHERE id = :playlistId")
     fun getPlaylist(playlistId: Int): Flow<Playlist?>
 
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId")
+
+
+    @Query("""
+    SELECT songs_table.* 
+    FROM songs_table 
+    JOIN playlist_song_cross_reference ON songs_table.id = playlist_song_cross_reference.songId 
+    WHERE playlist_song_cross_reference.playlistId = :playlistId
+    """)
     fun getPlaylistSongs(playlistId: Int?): Flow<List<Song>>
+
 
     @Query("SELECT EXISTS(SELECT * FROM playlist_table WHERE playlistName =:playlistName)")
     suspend fun playlistExists(playlistName: String): Boolean
@@ -100,10 +142,6 @@ interface MusicDao {
     @Delete
     suspend fun removePlaylists(playlists: ArrayList<Playlist>)
 
-
-
-
-
     @Transaction
     @Query("SELECT * FROM playlist_table ORDER BY updated DESC, playlistName")
     fun getPlaylistsWithSongs(): Flow<List<PlaylistWithSongs>>
@@ -112,149 +150,71 @@ interface MusicDao {
     @Query("SELECT * FROM playlist_table where id = :playlistId")
     fun getPlaylistWithSongs(playlistId:Int): Flow<PlaylistWithSongs>
 
+
+    // Fetch songs with dynamic order
+    @RawQuery(observedEntities = [Song::class])
+    fun fetchPlaylistAndSongsRawQuery(query: SupportSQLiteQuery): Flow<List<Song>>
+
+    fun getPlaylistWithSongs(playlistId: Int, showHidden: Boolean?=false, query:String?="", songSortOrder: SongSortOrder, sortOrder: SortOrder): Flow<PlaylistWithSongs> = flow {
+        val songOrderColumn = songSortOrder.key
+        val orderDirection = sortOrder.key
+        val rawQuery = """
+            SELECT songs_table.* 
+            FROM songs_table 
+            JOIN playlist_song_cross_reference ON songs_table.id = playlist_song_cross_reference.songId
+            WHERE playlist_song_cross_reference.playlistId = ? 
+            AND (songName LIKE ? OR songArtist LIKE ?) 
+            AND isHidden = ?
+            ORDER BY $songOrderColumn $orderDirection, songName
+        """
+        val sqlQuery = SimpleSQLiteQuery(rawQuery, arrayOf(playlistId,"%$query%", "%$query%", if(showHidden == true) 1 else 0))
+        val playlist = getPlaylistWithSongs(playlistId).first()
+        val sortedSongs = fetchPlaylistAndSongsRawQuery(sqlQuery).first()
+
+        emit(PlaylistWithSongs(playlist.playlist, sortedSongs))
+    }
+
     @Transaction
     @Query("SELECT * FROM playlist_table WHERE isHidden= :isHidden ORDER BY updated DESC, playlistName")
     fun getPlaylistsWithSongs(isHidden: Boolean): Flow<List<PlaylistWithSongs>>
 
 
-    fun getPlaylistsWithSongs(showHidden: Boolean, query: String, playlistSortOrder: PlaylistSortOrder, sortOrder: SortOrder):Flow<List<PlaylistWithSongs>> =
-        when(sortOrder){
-            SortOrder.A_Z -> {
-                when (playlistSortOrder) {
-                    PlaylistSortOrder.BY_NAME -> { getPlaylistsWithSongsByName(query = query, showHidden = showHidden) }
-                    PlaylistSortOrder.BY_DATE_CREATED -> { getPlaylistsWithSongsByDateCreated(query = query, showHidden = showHidden) }
-                    PlaylistSortOrder.BY_DATE_UPDATED -> { getPlaylistsWithSongsByDateUpdated(query = query, showHidden = showHidden) }
-                    else -> { getPlaylistsWithSongsByName(query = query, showHidden = showHidden) }
-                }
-            }
-            SortOrder.Z_A ->{
-                when(playlistSortOrder){
-                    PlaylistSortOrder.BY_NAME ->{getPlaylistsWithSongsByNameDesc(query = query, showHidden = showHidden)}
-                    PlaylistSortOrder.BY_DATE_CREATED -> {getPlaylistsWithSongsByDateCreatedDesc(query = query, showHidden = showHidden)}
-                    PlaylistSortOrder.BY_DATE_UPDATED -> {getPlaylistsWithSongsByDateUpdatedDesc(query = query, showHidden = showHidden)}
-                    else -> {getPlaylistsWithSongsByNameDesc(query = query, showHidden = showHidden)}
-                }
-            }
-        }
-
-    @Transaction
-    @Query("SELECT * FROM playlist_table WHERE playlistName LIKE '%' ||:query || '%' AND isHidden = :showHidden ORDER BY playlistName ASC, playlistName")
-    fun getPlaylistsWithSongsByName(showHidden: Boolean, query: String):Flow<List<PlaylistWithSongs>>
-
-    @Transaction
-    @Query("SELECT * FROM playlist_table WHERE playlistName LIKE '%' ||:query || '%' AND isHidden = :showHidden ORDER BY created ASC, playlistName")
-    fun getPlaylistsWithSongsByDateCreated(showHidden: Boolean, query: String):Flow<List<PlaylistWithSongs>>
-
-    @Transaction
-    @Query("SELECT * FROM playlist_table WHERE playlistName LIKE '%' ||:query || '%' AND isHidden = :showHidden ORDER BY updated ASC, playlistName")
-    fun getPlaylistsWithSongsByDateUpdated(showHidden: Boolean, query: String):Flow<List<PlaylistWithSongs>>
-
-    @Transaction
-    @Query("SELECT * FROM playlist_table WHERE playlistName LIKE '%' ||:query || '%' AND isHidden = :showHidden ORDER BY playlistName DESC, playlistName")
-    fun getPlaylistsWithSongsByNameDesc(showHidden: Boolean, query: String):Flow<List<PlaylistWithSongs>>
-
-    @Transaction
-    @Query("SELECT * FROM playlist_table WHERE playlistName LIKE '%' ||:query || '%' AND isHidden = :showHidden ORDER BY created DESC, playlistName")
-    fun getPlaylistsWithSongsByDateCreatedDesc(showHidden: Boolean, query: String):Flow<List<PlaylistWithSongs>>
-
-    @Transaction
-    @Query("SELECT * FROM playlist_table WHERE playlistName LIKE '%' ||:query || '%' AND isHidden = :showHidden ORDER BY updated DESC, playlistName")
-    fun getPlaylistsWithSongsByDateUpdatedDesc(showHidden: Boolean, query: String):Flow<List<PlaylistWithSongs>>
-
-
-
-
-    suspend fun getPlaylistSongs(playlistId: Int, query: String, songSortOrder: SongSortOrder, sortOrder: SortOrder, showHidden:Boolean = false): Flow<List<Song>> =
-        when(sortOrder){
-            SortOrder.A_Z -> {
-                when(songSortOrder){
-                    SongSortOrder.BY_NAME->{getPlaylistSongsByName(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_LENGTH->{getPlaylistSongsByLength(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_ARTIST->{getPlaylistSongsByArtist(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_ALBUM->{getPlaylistSongsByAlbum(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_TRACK_NUMBER->{getPlaylistSongsByTrackNumber(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_YEAR->{getPlaylistSongsByYear(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_ALBUM_ARTIST->{getPlaylistSongsByAlbumArtist(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_ADDED_TO_PLAYLIST->{getPlaylistSongsByAddedToPlaylist(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_GENRE->{getPlaylistSongsByGenre(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_FOLDER->{getPlaylistSongsByGenre(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    else -> {getPlaylistSongsByName(playlistId, query, showHidden = showHidden)}
-                }
-            }
-
-            SortOrder.Z_A -> {
-                when(songSortOrder){
-                    SongSortOrder.BY_NAME->{getPlaylistSongsByNameDesc(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_LENGTH->{getPlaylistSongsByLengthDesc(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_ARTIST->{getPlaylistSongsByArtistDesc(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_ALBUM->{getPlaylistSongsByAlbumDesc(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_TRACK_NUMBER->{getPlaylistSongsByTrackNumberDesc(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_YEAR->{getPlaylistSongsByYearDesc(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_ALBUM_ARTIST->{getPlaylistSongsByAlbumArtistDesc(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_ADDED_TO_PLAYLIST->{getPlaylistSongsByAddedToPlaylistDesc(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_GENRE->{getPlaylistSongsByGenreDesc(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    SongSortOrder.BY_FOLDER->{getPlaylistSongsByGenre(playlistId = playlistId, query = query, showHidden = showHidden)}
-                    else -> {getPlaylistSongsByName(playlistId, query, showHidden = showHidden)}
-                }
-            }
-        }
-
-
     @Query("UPDATE playlist_table SET updated=:time WHERE id= :playlistId")
     suspend fun updatePlaylistModifiedDate(playlistId: Int, time:Long = System.currentTimeMillis())
 
-    @Query("SELECT * FROM songs_table " +
-            "WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden " +
-            "OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden " +
-            "ORDER BY songName ASC, songName")
-    fun getPlaylistSongsByName(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
+    @RawQuery(observedEntities = [Playlist::class])
+    fun fetchPlaylistsWithSongsWithRawQuery(query: SupportSQLiteQuery): Flow<List<PlaylistWithSongs>>
+    fun getPlaylistsWithSongs(showHidden: Boolean?=false, query: String? = "", playlistSortOrder: PlaylistSortOrder? = PlaylistSortOrder.BY_DATE_UPDATED, sortOrder: SortOrder? = SortOrder.Z_A): Flow<List<PlaylistWithSongs>> {
+        val columnName = playlistSortOrder?.key ?: PlaylistSortOrder.BY_DATE_UPDATED
+        val orderDirection = sortOrder?.key ?: SortOrder.Z_A
+        val rawQuery = """
+            SELECT * 
+            FROM playlist_table 
+            WHERE playlistName LIKE ?
+            AND isHidden = ? 
+            ORDER BY $columnName $orderDirection, playlistName
+        """
+        val sqlQuery = SimpleSQLiteQuery(rawQuery, arrayOf("%$query%", if(showHidden == true) 1 else 0))
+        return fetchPlaylistsWithSongsWithRawQuery(sqlQuery)
+    }
 
 
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY length ASC, songName")
-    fun getPlaylistSongsByLength(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY songArtist ASC, songName")
-    fun getPlaylistSongsByArtist(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY albumArtist ASC, songName")
-    fun getPlaylistSongsByAlbumArtist(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY trackNumber ASC, songName")
-    fun getPlaylistSongsByTrackNumber(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY year ASC, songName")
-    fun getPlaylistSongsByYear(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY playlistId ASC, songName")
-    fun getPlaylistSongsByPlaylist(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY album ASC, songName")
-    fun getPlaylistSongsByAlbum(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY created ASC, songName")
-    fun getPlaylistSongsByAddedToPlaylist(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY genre ASC, songName")
-    fun getPlaylistSongsByGenre(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY folder ASC, songName")
-    fun getPlaylistSongsByFolder(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-
-
-
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY songName DESC, songName")
-    fun getPlaylistSongsByNameDesc(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY length DESC, songName")
-    fun getPlaylistSongsByLengthDesc(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY songArtist DESC, songName")
-    fun getPlaylistSongsByArtistDesc(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY albumArtist DESC, songName")
-    fun getPlaylistSongsByAlbumArtistDesc(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY trackNumber DESC, songName")
-    fun getPlaylistSongsByTrackNumberDesc(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY year DESC, songName")
-    fun getPlaylistSongsByYearDesc(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY playlistId DESC, songName")
-    fun getPlaylistSongsByPlaylistDesc(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY album DESC, songName")
-    fun getPlaylistSongsByAlbumDesc(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY created DESC, songName")
-    fun getPlaylistSongsByAddedToPlaylistDesc(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY genre DESC, songName")
-    fun getPlaylistSongsByGenreDesc(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-    @Query("SELECT * FROM songs_table WHERE playlistId = :playlistId AND songName LIKE '%' ||:query || '%' AND isHidden = :showHidden OR playlistId = :playlistId AND songArtist LIKE '%' ||:query || '%' AND isHidden = :showHidden  ORDER BY folder DESC, songName")
-    fun getPlaylistSongsByFolderDesc(playlistId: Int, query: String, showHidden:Boolean): Flow<List<Song>>
-
+    @RawQuery(observedEntities = [Song::class])
+    fun fetchSongsWithRawQuery(query: SupportSQLiteQuery): Flow<List<Song>>
+    suspend fun getPlaylistSongs(playlistId: Int, query: String, songSortOrder: SongSortOrder, sortOrder: SortOrder, showHidden:Boolean = false): Flow<List<Song>> {
+        val columnName = songSortOrder.key
+        val orderDirection = sortOrder.key
+        val rawQuery = """
+            SELECT songs_table.* 
+            FROM songs_table 
+            JOIN playlist_song_cross_reference ON songs_table.id = playlist_song_cross_reference.songId
+            WHERE playlist_song_cross_reference.playlistId = ? 
+            AND (songName LIKE ? OR songArtist LIKE ?) 
+            AND isHidden = ?
+            ORDER BY $columnName $orderDirection, songName
+        """
+        val sqlQuery = SimpleSQLiteQuery(rawQuery, arrayOf(playlistId, "%$query%", "%$query%", if(showHidden) 1 else 0))
+        return fetchSongsWithRawQuery(sqlQuery)
+    }
 
 }
