@@ -96,9 +96,15 @@ fun Library(navigator: DestinationsNavigator, viewModel: LibraryViewModel = hilt
             Text("Library", fontSize = 45.sp, modifier = Modifier.padding(bottom = 15.dp))
             Text("Recent Playlists", fontSize = 22.sp, modifier = Modifier.padding(bottom = 3.dp))
             PlaylistList(navigator = navigator)
-            menuItem(text = "All Songs", onClick = { navigator.navigate(LibraryPlaylistDestination(viewModel.playlistAllSongs))})
+            menuItem(text = "All Songs", onClick = {
+                if(viewModel.playlistAllSongs.value!=null){
+                    navigator.navigate(LibraryPlaylistDestination(viewModel.playlistAllSongs.value!!))}
+            })
             menuItem(text = "Playlists", onClick = { navigator.navigate(LibraryPlaylistsScreenDestination)})
-            menuItem(text = "Favorites", onClick = { navigator.navigate(LibraryPlaylistDestination(viewModel.playlistAllSongs))})
+            menuItem(text = "Favorites", onClick = {
+                if(viewModel.playlistFavorites.value!=null){
+                    navigator.navigate(LibraryPlaylistDestination(viewModel.playlistFavorites.value!!))}
+            })
             menuItem(text = "Folders", onClick = {})
             menuItem(text = "Storage", onClick = {})
                 
@@ -154,7 +160,7 @@ fun PlaylistList(
             val density = LocalDensity.current
             var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
-            LaunchedEffect(playlistWithSongs) {
+            LaunchedEffect(Unit) {
                 withContext(Dispatchers.Default) {
                     bitmap = viewModel.getPlaylistBitmap(playlistWithSongs.get(index))
                 }

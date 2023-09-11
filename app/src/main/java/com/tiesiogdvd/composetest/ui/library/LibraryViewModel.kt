@@ -1,27 +1,24 @@
 package com.tiesiogdvd.composetest.ui.library
 
 import android.app.Application
-import android.graphics.Bitmap
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.tiesiogdvd.composetest.data.PreferencesManager
+import com.tiesiogdvd.composetest.data.SongSortOrder
+import com.tiesiogdvd.composetest.data.SortOrder
 import com.tiesiogdvd.composetest.service.ServiceConnector
-import com.tiesiogdvd.composetest.ui.libraryPlaylist.BitmapLoader
+import com.tiesiogdvd.composetest.util.BitmapLoader
 import com.tiesiogdvd.composetest.util.MusicDataMetadata
 import com.tiesiogdvd.composetest.util.SongDataGetMusicInfo
 import com.tiesiogdvd.playlistssongstest.data.MusicDao
 import com.tiesiogdvd.playlistssongstest.data.Playlist
 import com.tiesiogdvd.playlistssongstest.data.PlaylistWithSongs
-import com.tiesiogdvd.playlistssongstest.data.Song
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.collectLatest
 import javax.inject.Inject
 
 @HiltViewModel
@@ -32,7 +29,7 @@ class LibraryViewModel @Inject constructor(
     val preferencesManager: PreferencesManager,
     val connector: ServiceConnector
 ): ViewModel(){
-    val playlistsWithSongs = musicDao.getPlaylistsWithSongs()
+    val playlistsWithSongs = musicDao.getPlaylistsWithSongs(showHidden = false)
     val backgroundBitmap = MutableStateFlow<ImageBitmap?>(null)
 
     val currentSource = preferencesManager.currentSourceFlow.asLiveData()
@@ -43,12 +40,15 @@ class LibraryViewModel @Inject constructor(
     val currentScroll = MutableStateFlow(0f)
 
 
-    lateinit var playlistAllSongs: Playlist
-
+    //lateinit var playlistAllSongs: Playlist
+    val playlistAllSongs = MutableStateFlow<Playlist?>(null)
+    val playlistFavorites = MutableStateFlow<Playlist?>(null)
     init {
       viewModelScope.launch {
+          playlistAllSongs.value = musicDao.getPlaylist("All Songs")
+          playlistFavorites.value = musicDao.getPlaylist("Favorites")
           songDataGetMusicInfo.getMusicInfo(musicDao,application)
-          playlistAllSongs = musicDao.getPlaylist("All Songs")
+
       }
 
        currentSource.observeForever{
@@ -79,12 +79,8 @@ class LibraryViewModel @Inject constructor(
                 }
             }
         }else{
-            if(musicDao.getSong(playlistId = playlistWithSongs.playlist.id, songPath = playlistWithSongs.playlist.bitmapSource)!=null){
-               // job = coroutineScope.launch {
-                 //   bitmap = MusicDataMetadata.getBitmap(playlistWithSongs.playlist.bitmapSource)
-               // }
+            if(musicDao.getSong(songPath = playlistWithSongs.playlist.bitmapSource)!=null){
                 val waitForBitmap = CoroutineScope(Dispatchers.Default).async {
-                    //bitmap = MusicDataMetadata.getBitmap(playlistWithSongs.playlist.bitmapSource)
                     bitmap = BitmapLoader.loadBitmapAsync(coroutineScope, playlistWithSongs.playlist.bitmapSource).await()
                     return@async bitmap
                 }
