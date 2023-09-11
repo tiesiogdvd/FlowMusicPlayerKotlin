@@ -1,6 +1,5 @@
 import android.util.Log
 import androidx.annotation.Keep
-import com.google.gson.JsonObject
 import com.jakewharton.retrofit2.adapter.kotlin.coroutines.CoroutineCallAdapterFactory
 import com.tiesiogdvd.composetest.BuildConfig
 import io.ktor.client.*
@@ -39,19 +38,78 @@ data class GeniusSearchResult(val response: GeniusResponse)
 @Keep
 data class GeniusResponse(val hits: List<GeniusHit>)
 @Keep
-data class GeniusHit(val result: GeniusResult)
+data class GeniusHit(val index: String,
+                     val result: GeniusResult,
+                     val type: String)
 @Keep
-data class GeniusResult(val url: String)
+data class GeniusResult(
+    val annotation_count: Int,
+    val api_path: String,
+    val artist_names: String,
+    val featured_artists: List<FeaturedArtist>,
+    val full_title: String,
+    val header_image_thumbnail_url: String,
+    val header_image_url: String,
+    val id: Int,
+    val lyrics_owner_id: Int,
+    val lyrics_state: String,
+    val path: String,
+    val primary_artist: PrimaryArtist,
+    val pyongs_count: Int?,
+    val relationships_index_url: String,
+    val release_date_components: ReleaseDateComponents,
+    val release_date_for_display: String,
+    val release_date_with_abbreviated_month_for_display: String,
+    val song_art_image_thumbnail_url: String,
+    val song_art_image_url: String,
+    val stats: Stats,
+    val title: String,
+    val title_with_featured: String,
+    val url: String
+)
+
+@Keep
+data class PrimaryArtist(
+    val api_path: String,
+    val header_image_url: String,
+    val id: Int,
+    val image_url: String,
+    val is_meme_verified: Boolean,
+    val is_verified: Boolean,
+    val name: String,
+    val url: String
+)
+
+@Keep
+data class FeaturedArtist(
+    val api_path: String,
+    val header_image_url: String,
+    val id: Int,
+    val image_url: String,
+    val is_meme_verified: Boolean,
+    val is_verified: Boolean,
+    val name: String,
+    val url: String
+)
+
+@Keep
+data class Stats(
+    val hot: Boolean,
+    val pageviews: Int?,
+    val unreviewed_annotations: Int
+)
+
+@Keep
+data class ReleaseDateComponents(
+    val day: Int,
+    val month: Int,
+    val year: Int
+)
 
 fun cleanSongTitle(input: String): String {
     val regex = Regex("\\\\([^)]*\\\\)|\\(.*?\\)|\\[.*?]|\\\\[[^]]*]|\\#\\S+|Original|Movie|Mix|Official|_|\\|")
     Log.d("test", regex.replace(input, "").trim())
     return regex.replace(input, "").trim()
-}
-
-fun b(input: String): Boolean {
-    val regex = Regex(pattern = "Glass Animals \\| It's All So Incredibly Loud \\([^)]*\\)  \\{[^}]*\\} ! ~ \\| \\[[^\\]]*\\] #", options = setOf(RegexOption.IGNORE_CASE))
-    return regex.matches(input)
 }
 
 fun a(input: String):String{
@@ -71,108 +129,8 @@ fun splitByHyphen(input: String): Pair<String, String> {
         Pair(input, "")
     }
 }
-
-suspend fun fetchLyrics(artist: String, title: String): String? {
-    return withContext(Dispatchers.IO) {
-        val query = "$artist $title"
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.genius.com/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-
-        val service = retrofit.create(GeniusApiService::class.java)
-        val response = service.searchSong(query).execute()
-
-        if (response.isSuccessful) {
-            val result = response.body()
-            if (result != null && result.response.hits.isNotEmpty()) {
-                val songUrl = result.response.hits[0].result.url
-
-                val document = Jsoup.connect(songUrl)
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 Edg/112.0.1722.39")
-                    .get()
-                val lyricsDiv = document.selectFirst("div[class*=Lyrics__Container-]")
-
-                return@withContext lyricsDiv?.text()
-            }
-        }
-
-        null
-    }
-}
-
-suspend fun fetchLyrics2(artist: String, title: String): String? {
-    return withContext(Dispatchers.IO) {
-        val query = "$artist $title"
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.genius.com/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-
-        val service = retrofit.create(GeniusApiService::class.java)
-        val response = service.searchSong(query).execute()
-
-        if (response.isSuccessful) {
-            val result = response.body()
-            if (result != null && result.response.hits.isNotEmpty()) {
-                val songUrl = result.response.hits[0].result.url
-
-                val document = Jsoup.connect(songUrl)
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 Edg/112.0.1722.39")
-                    .get()
-                val lyricsDiv = document.selectFirst("div[class*=Lyrics__Container-]")
-
-                // Get the lyrics with HTML formatting and replace <br> tags with newline characters
-                val lyricsHtml = lyricsDiv?.html()
-                val lyrics = lyricsHtml?.replace("<br>", "\n", ignoreCase = true)
-
-                return@withContext lyrics
-            }
-        }
-
-        null
-    }
-}
-
-suspend fun fetchLyrics3(artist: String, title: String): String? {
-    return withContext(Dispatchers.IO) {
-        val query = "$artist $title"
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.genius.com/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-
-        val service = retrofit.create(GeniusApiService::class.java)
-        val response = service.searchSong(query).execute()
-
-        if (response.isSuccessful) {
-            val result = response.body()
-            if (result != null && result.response.hits.isNotEmpty()) {
-                val songUrl = result.response.hits[0].result.url
-
-                val document = Jsoup.connect(songUrl)
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 Edg/112.0.1722.39")
-                    .get()
-                val lyricsDiv = document.selectFirst("div[class*=Lyrics__Container-]")
-
-                // Remove all unwanted HTML elements
-                lyricsDiv?.select("a")?.remove()
-                lyricsDiv?.select("span")?.remove()
-
-                // Get the lyrics with HTML formatting and replace <br> tags with newline characters
-                val lyricsHtml = lyricsDiv?.html()
-                val lyrics = lyricsHtml?.replace("<br>", "\n", ignoreCase = true)?.replace("&nbsp;", " ")
-
-                return@withContext lyrics
-            }
-        }
-
-        null
-    }
-}
-
 @Keep
-suspend fun fetchLyrics4(artist: String, title: String): String? {
+suspend fun fetchGeniusResponse(artist: String,title: String):GeniusResponse?{
     return withContext(Dispatchers.IO) {
         var query = ""
         if(artist!=""){
@@ -195,151 +153,52 @@ suspend fun fetchLyrics4(artist: String, title: String): String? {
 
             if (response.isSuccessful) {
                 val result = response.body()
-                if (result != null && result.response.hits.isNotEmpty()) {
-                    val similarity = JaroWinklerDistance()
-                    val songUrl = result.response.hits
-                        .maxByOrNull { hit -> similarity.apply(query.lowercase(), hit.result.url.lowercase()) }
-                        ?.result
-                        ?.url
-
-                    try {
-                        val document = Jsoup.connect(songUrl)
-                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 Edg/112.0.1722.39")
-                            .get()
-                        val lyricsDivs = document.select("div[class*=Lyrics__Container-]")
-
-                        fun extractText(node: Node): String {
-                            return when (node) {
-                                is TextNode -> node.text()
-                                is Element -> {
-                                    if (node.tagName() == "br") "\n"
-                                    else {
-                                        val children = node.childNodes()
-                                        if (children.isNotEmpty()) {
-                                            children.joinToString(separator = "") { extractText(it) }
-                                        } else {
-                                            node.text()
-                                        }
-                                    }
-                                }
-                                else -> ""
-                            }
-                        }
-
-                        // Join text nodes and replace <br> tags with newlines
-                        return@withContext lyricsDivs.joinToString("\n") { div ->
-                            div.childNodes().joinToString(separator = "") { extractText(it) }
-                        }
-                    } catch (e: Exception) {
-                        // Handle Jsoup exception here
-                        e.printStackTrace()
-                    }
-                }
+                return@withContext result?.response
             }
         } catch (e: Exception) {
             // Handle Retrofit exception here
             e.printStackTrace()
         }
-
         null
     }
 }
 
+@Keep
+suspend fun fetchLyrics(geniusResponse: GeniusResponse, index: Int):String?{
+    val hit = geniusResponse.hits.get(index)
+    val songUrl = hit.result.url
 
+    try {
+        val document = Jsoup.connect(songUrl)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 Edg/112.0.1722.39")
+            .get()
+        val lyricsDivs = document.select("div[class*=Lyrics__Container-]")
 
+        fun extractText(node: Node): String {
+            return when (node) {
+                is TextNode -> node.text()
+                is Element -> {
+                    if (node.tagName() == "br") "\n"
+                    else {
+                        val children = node.childNodes()
+                        if (children.isNotEmpty()) {
+                            children.joinToString(separator = "") { extractText(it) }
+                        } else {
+                            node.text()
+                        }
+                    }
+                }
+                else -> ""
+            }
+        }
 
-
-
-
-
-
-
-suspend fun fetchLyricsWithKtor(songUrl: String): String? {
-    val client = HttpClient(Android) {
-        UserAgent("")
-        BrowserUserAgent()
-        expectSuccess = false
+        // Join text nodes and replace <br> tags with newlines
+        return lyricsDivs.joinToString("\n") { div ->
+            div.childNodes().joinToString(separator = "") { extractText(it) }
+        }
+    } catch (e: Exception) {
+        // Handle Jsoup exception here
+        e.printStackTrace()
     }
-
-    val response: HttpResponse = client.get(songUrl)
-
-    if (response.status.value == 403) {
-        print("no success")
-        // Handle 403 error
-        return null
-    }
-
-    val htmlContent = response.readText()
-    val document = Jsoup.parse(htmlContent)
-
-    // Extract lyrics
-    val lyricsDiv = document.selectFirst("div[class^=Lyrics__Container]")
-    val lyrics = lyricsDiv?.wholeText()?.trim()
-
-    print(lyrics)
-
-    return lyrics
-}
-
-
-suspend fun fetchLyricsWithKtor2(artist: String, title: String): String? {
-    val client = HttpClient(Android) {
-        UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 Edg/112.0.1722.39")
-        //BrowserUserAgent()
-        expectSuccess = false
-    }
-
-    val geniusApiUrl = "https://api.genius.com"
-    val apiKey = BuildConfig.API_KEY
-
-    // Search for the song
-    val searchUrl = "$geniusApiUrl/search?q=${artist}+${title}&access_token=$apiKey"
-    val searchResponse: HttpResponse = client.get(searchUrl)
-
-    if (searchResponse.status.value != 200) {
-        // Handle unsuccessful response
-        return null
-    }
-
-    val jsonResponse = searchResponse.readText()
-    val json = Json { ignoreUnknownKeys = true }
-    val jsonObject = json.parseToJsonElement(jsonResponse).jsonObject
-
-    // Get song URL
-    val songUrl = jsonObject["response"]
-        ?.jsonObject?.get("hits")
-        ?.jsonArray?.get(0)
-        ?.jsonObject?.get("result")
-        ?.jsonObject?.get("url")
-        ?.toString()
-        ?.replace("\"", "")
-
-    println(songUrl)
-
-    if (songUrl == null) {
-        // Handle no song URL found
-        return null
-    }
-
-    // Fetch lyrics
-    val lyricsResponse: HttpResponse = client.get(songUrl)
-
-    if (lyricsResponse.status.value != 200) {
-        println(lyricsResponse.status.value)
-        // Handle unsuccessful response
-        return null
-    }
-
-
-
-    val htmlContent = lyricsResponse.readText()
-    val document = Jsoup.parse(htmlContent)
-
-    // Extract lyrics
-    val lyricsDiv = document.selectFirst("div[class^=Lyrics__Container]")
-    val lyrics = lyricsDiv?.wholeText()?.trim()
-
-    println(lyricsDiv)
-
-    return lyrics
+    return null
 }
