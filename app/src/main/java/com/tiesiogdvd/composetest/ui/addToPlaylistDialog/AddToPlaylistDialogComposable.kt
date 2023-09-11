@@ -2,8 +2,7 @@
 
 package com.tiesiogdvd.composetest.ui.addToPlaylistDialog
 
-import android.content.res.Resources.Theme
-import androidx.compose.animation.core.AnimationSpec
+import android.widget.Toast
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -11,12 +10,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.*
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -27,23 +28,29 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.tiesiogdvd.composetest.R
 import com.tiesiogdvd.composetest.ui.addPlaylistDialog.AddPlaylistDialog
 import com.tiesiogdvd.composetest.ui.theme.GetThemeColor
-import com.tiesiogdvd.composetest.ui.theme.Transitions
+import com.tiesiogdvd.composetest.util.containtsPlaylist
 import com.tiesiogdvd.playlistssongstest.data.Playlist
 import com.tiesiogdvd.playlistssongstest.data.Song
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-
-
+import kotlinx.coroutines.launch
 
 
 @Composable
 fun AddToPlaylistDialog(
-    songList: MutableStateFlow<HashMap<Int, Song>>,
+    songList: MutableStateFlow<HashMap<Int, Song>>? = null,
+    singleSong : Flow<Song>? = null,
     onDismiss: () -> Unit,
     viewModel: AddToPlaylistDialogViewModel = hiltViewModel()
     ){
+        val singleSongAsMap = mutableMapOf<Int,Song>()
+        singleSong?.collectAsState(initial = null)?.value?.let { singleSongAsMap.put(0, it) }
         val isItemEnabled by remember{mutableStateOf(viewModel.isAddPlaylistDialogEnabled)}.value
         val playlists = viewModel.playlists.collectAsState(initial = emptyList()).value
-        val songs = songList.collectAsState(initial = emptyMap()).value
+        val songs = songList?.collectAsState(initial = emptyMap())?.value ?: singleSongAsMap
+        val listState = rememberLazyListState()
+        val coroutineScope = rememberCoroutineScope()
+        val context = LocalContext.current
         Dialog(onDismissRequest = { onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true, dismissOnClickOutside = true)) {
             Card(
                 elevation = 5.dp,
@@ -68,34 +75,36 @@ fun AddToPlaylistDialog(
                                 .align(CenterVertically)
                                 .padding(end = 2.dp))
                     }
-
                 }
-
-
 
                 if(isItemEnabled){
                     AddPlaylistDialog(
                         onDismiss = { viewModel.toggleAddPlaylistDialog()},
-                        onRequestAddPlaylist = {
-                            if(viewModel.playlistExists(it,playlists)){
-                                println("EXISTS")
+                        onRequestAddPlaylist = {playlistToAddName ->
+                            if(playlists.containtsPlaylist(playlistToAddName)){
+                                Toast.makeText(context, "Playlist already exists", Toast.LENGTH_SHORT).show()
                             }else{
-                                viewModel.addPlaylist(it,songs)
+                                viewModel.addPlaylist(playlistToAddName,songs)
+
+                                coroutineScope.launch {
+                                    listState.animateScrollToItem(0)
+                                }
+
                                 println("SIZE OF " + songs.size)
                                 viewModel.isAddPlaylistDialogEnabled.value = false
                             }
-
                         })
                 }
 
-
-                LazyColumn(content = {
+                LazyColumn(state = listState, content = {
                     itemsIndexed(items = playlists, key = {index, playlist -> playlist}){
                         index, playlist ->
                         var isSelected by remember{ mutableStateOf(false)}
                         LaunchedEffect(index){
                             if(songs.size==1){
-                                isSelected = viewModel.isSongInPlaylist(playlist.playlist, songs.values.first())
+                                isSelected = playlist.containsSong(songs.values.first())
+                            }else{
+                                isSelected = playlist.containsSongsFromMap(songs)
                             }
                         }
                         Column(
@@ -104,11 +113,10 @@ fun AddToPlaylistDialog(
                                 .animateItemPlacement(animationSpec = tween(durationMillis = 300))
                                 .fillMaxWidth(), verticalArrangement = Arrangement.Center
                         ) {
-                            PlaylistItem(playlist = playlist.playlist, onToggle = { viewModel.toggleAddStatus(playlistId = playlist.playlist.id, songs, isSelected) }, isSelected = isSelected, if(songs.size==1){true}else{false})
+                            PlaylistItem(playlist = playlist.playlist, onToggle = {
+                                viewModel.toggleAddStatus(playlistId = playlist.playlist.id, songs, isSelected) }, isSelected = isSelected, showCheckBox = true
+                            )
                         }
-
-
-
                     }
                 })
             }
