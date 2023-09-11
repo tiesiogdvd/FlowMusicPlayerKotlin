@@ -2,23 +2,17 @@
 
 package com.tiesiogdvd.composetest.ui.libraryPlaylist
 
-import android.graphics.Paint.Align
-import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.*
 
 
 
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,7 +41,6 @@ import androidx.compose.runtime.remember
 
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.*
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
@@ -57,12 +50,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.consumeAllChanges
-import androidx.compose.ui.input.pointer.consumePositionChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.debugInspectorInfo
 import androidx.compose.ui.text.style.TextAlign
@@ -80,9 +70,9 @@ import com.tiesiogdvd.composetest.ui.selectionBar.SelectionType
 import com.tiesiogdvd.composetest.ui.sortOrderDialog.SortOrderSongsDialog
 import com.tiesiogdvd.composetest.ui.theme.GetThemeColor
 import com.tiesiogdvd.composetest.ui.theme.Transitions
+import com.tiesiogdvd.composetest.util.BitmapLoader
 import com.tiesiogdvd.composetest.util.TypeConverter
 import kotlinx.coroutines.*
-import java.io.File
 import kotlin.math.*
 
 
@@ -133,8 +123,10 @@ fun LibraryPlaylist(navigator: DestinationsNavigator, playlist: Playlist, viewMo
                         onItemClick = {
                             when(it.name){
                                 "Remove from playlist" -> viewModel.removeSongs()
+                                "Remove from favorites" -> viewModel.removeSongs()
                                 "Hide" -> viewModel.hideSongs()
                                 "Set playlist cover" -> viewModel.setPlaylistCover()
+                                "Set favorites cover" -> viewModel.setPlaylistCover()
                                 "Add to playlist" -> viewModel.openPlaylistsDialog()
                                 else -> println("haha")
 
