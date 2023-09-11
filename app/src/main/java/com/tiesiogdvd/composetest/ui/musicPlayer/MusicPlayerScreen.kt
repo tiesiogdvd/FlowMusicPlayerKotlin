@@ -3,7 +3,6 @@
 
 package com.tiesiogdvd.composetest.ui.musicPlayer
 
-import android.util.Log
 import android.view.View
 import android.view.View.OnClickListener
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -15,8 +14,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.*
-import androidx.compose.foundation.gestures.snapping.SnapFlingBehavior
-import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,7 +21,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerSnapDistance
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.*
@@ -33,16 +29,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.*
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.util.lerp
@@ -52,35 +42,44 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.session.MediaController
 import androidx.palette.graphics.Palette
 import com.masoudss.lib.SeekBarOnProgressChanged
 import com.masoudss.lib.WaveformSeekBar
 import com.ramcosta.composedestinations.annotation.Destination
 import com.tiesiogdvd.composetest.R
+import com.tiesiogdvd.composetest.ui.addToPlaylistDialog.AddToPlaylistDialog
 import com.tiesiogdvd.composetest.ui.theme.*
 import com.tiesiogdvd.composetest.util.MusicDataMetadata
 import com.tiesiogdvd.composetest.util.TypeConverter
 import com.tiesiogdvd.playlistssongstest.data.Song
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import me.saket.telephoto.zoomable.rememberZoomableState
 import me.saket.telephoto.zoomable.zoomable
-import kotlin.math.abs
+import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.ranges.coerceIn
 
 
 @Destination
 @Composable
-fun MusicPlayer(viewModel: MusicPlayerViewModel = hiltViewModel()) {
+fun MusicPlayer(
+    viewModel: MusicPlayerViewModel = hiltViewModel(),
+    amplitudaViewModel: AmplitudaViewModel = hiltViewModel()
+
+) {
     FlowPlayerTheme {
         val settings = viewModel.playerScreenSettings.collectAsState(initial = null).value
+        val currentSong = viewModel.currentSource
+        val enableAddToPlaylist = viewModel.playlistMenuEnabled.value
+        if(enableAddToPlaylist) {
+            AddToPlaylistDialog(singleSong = currentSong, onDismiss = { viewModel.togglePlaylistMenu() }, songList = null)
+        }
+
         if(settings?.enableViewPager?:true){
-            MusicPlayerBackground()
+            MusicPlayerBackground(viewModel = viewModel, amplitudaViewModel = amplitudaViewModel)
         }else{
-            MusicPlayerBackground2()
+            MusicPlayerBackground2(viewModel = viewModel, amplitudaViewModel = amplitudaViewModel)
         }
 
     }
@@ -89,14 +88,12 @@ fun MusicPlayer(viewModel: MusicPlayerViewModel = hiltViewModel()) {
 
 @Composable
 fun MusicPlayerBackground2(
-    viewModel: MusicPlayerViewModel = hiltViewModel()
+    viewModel: MusicPlayerViewModel = hiltViewModel(),
+    amplitudaViewModel: AmplitudaViewModel = hiltViewModel()
 ) {
-    val currentSong = viewModel.currentSource.collectAsState(null).value
+
     val isDarkTheme = isSystemInDarkTheme()
-    //var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
-    val songList = viewModel.songsList.collectAsState(null).value
-
-
+    val currentSong = viewModel.currentSource.collectAsState(null).value
 
     val bitmap = viewModel.bitmap.collectAsState().value
     var palette by remember { mutableStateOf<Palette?>(null) }
@@ -137,8 +134,6 @@ fun MusicPlayerBackground2(
             textColorByBrightness = GetThemeColor.getText(isDarkTheme)
         }
     }
-
-
 
     Surface(
         modifier = Modifier
@@ -200,29 +195,46 @@ fun MusicPlayerBackground2(
 
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier
                 .padding(start = 10.dp, end = 10.dp)
-                .fillMaxWidth()){
-                Column(modifier = Modifier, verticalArrangement = Arrangement.Center) {
-                    Text(if(currentSong!=null){currentSong.songName.toString()}else{""}, fontSize = 16.sp, color = textColorByBrightness, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier)
-                    Text(if(currentSong!=null && currentSong.songArtist==null){""}else{ currentSong?.songArtist.toString()} , fontSize = 12.sp, color = textColorByBrightness, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier)
+                .fillMaxWidth()) {
+
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                    Text(
+                        text = currentSong?.songName ?: "",
+                        fontSize = 16.sp,
+                        color = textColorByBrightness,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = currentSong?.songArtist ?: "",
+                        fontSize = 12.sp,
+                        color = textColorByBrightness,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
+                val isSongFavorite by remember { viewModel.isSongInFavorites }
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_action_favorite),
+                    painter = painterResource(id = if(!isSongFavorite) R.drawable.ic_action_favorite else R.drawable.ic_action_favorite_filled),
                     contentDescription = "icon",
                     modifier = Modifier
                         .height(25.dp)
                         .width(25.dp)
-                        .align(Alignment.CenterVertically)
-                        .clickable {},
+                        .align(Alignment.Top)
+                        .clickable {
+                            currentSong?.let { viewModel.toggleFavorite(it) }
+                        },
                     tint = textColorByBrightness
                 )
             }
 
+
             currentSong?.let {
-                MediaPlayerSeekBar(it, textColorByBrightness)
+                MediaPlayerSeekBar(it, textColorByBrightness, viewModel = viewModel)
             }
 
-            currentSong?.let { PlaybackItems(currentSong = it) }
+            currentSong?.let { PlaybackItems(currentSong = it, viewModel = viewModel, amplitudaViewModel = amplitudaViewModel) }
 
         }
     }
@@ -232,7 +244,8 @@ fun MusicPlayerBackground2(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MusicPlayerBackground(
-    viewModel: MusicPlayerViewModel = hiltViewModel()
+    viewModel: MusicPlayerViewModel = hiltViewModel(),
+    amplitudaViewModel: AmplitudaViewModel = hiltViewModel()
 ) {
     val currentSong = viewModel.currentSource.collectAsState(null).value
     val songList = viewModel.songsList.collectAsState(null).value
@@ -330,7 +343,7 @@ fun MusicPlayerBackground(
                 ) {
                     println(viewModel.shuffleStatus.value)
                     println(viewModel.shuffleList)
-                    SongPagerItem(index = it, song = if(viewModel.shuffleStatus.value == false) songList.get(it) else songList.get(shuffleArray.get(it)))
+                    SongPagerItem(index = it, song = if(viewModel.shuffleStatus.value == false) songList.get(it) else songList.get(shuffleArray.get(it)), viewModel = viewModel)
 
                 }
             }
@@ -344,9 +357,9 @@ fun MusicPlayerBackground(
         ) {
             currentSong?.let {
                 //MediaPlayerSeekBar(it, textColorByBrightness)
-                MediaPlayerSeekBar(it)
+                MediaPlayerSeekBar(it, viewModel = viewModel)
             }
-            currentSong?.let { PlaybackItems(currentSong = it) }
+            currentSong?.let { PlaybackItems(currentSong = it, viewModel = viewModel, amplitudaViewModel = amplitudaViewModel) }
         }
     }
 }
@@ -528,6 +541,11 @@ fun SongPagerItem(
 ) {
 
     val currentSongLyrics = viewModel.curSongLyrics.collectAsState(null).value
+    val curLyricsIndex = viewModel.curLyricsIndex.collectAsState().value ?: -1
+    val totalLyricsCount = viewModel.totalLyricsCount.collectAsState().value
+
+    val currentSong = viewModel.currentSource.collectAsState(null).value
+
 
     val isDarkTheme = isSystemInDarkTheme()
     var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
@@ -605,11 +623,51 @@ fun SongPagerItem(
                 Box(modifier = Modifier.padding(bottom = 20.dp)) {
                     LazyColumn(contentPadding = PaddingValues(10.dp),modifier = Modifier.padding(bottom = 5.dp)) {
                         item {
-                            Text(text = "Lyrics", textAlign = TextAlign.Center, color = textColorByBrightness, modifier = Modifier
+
+                            /*Text(text = "Lyrics", textAlign = TextAlign.Center, color = textColorByBrightness, modifier = Modifier
                                 .padding(bottom = 30.dp)
-                                .clipToBounds())
+                                .clipToBounds())*/
+
+                            Row() {
+                                val lessLyricsAvailable = derivedStateOf { curLyricsIndex != -1 && totalLyricsCount != null && curLyricsIndex > 0 }
+                                val moreLyricsAvailable = derivedStateOf { curLyricsIndex != -1 && totalLyricsCount != null && curLyricsIndex + 1 < totalLyricsCount }
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_action_navigate_previous),
+                                    contentDescription = "icon",
+                                    modifier = Modifier
+                                        .height(30.dp)
+                                        .width(30.dp)
+                                        .align(Alignment.CenterVertically)
+                                        .clickable {
+                                            if (lessLyricsAvailable.value) {
+                                                viewModel.loadLyricsIndex(curLyricsIndex - 1)
+                                            }
+                                        },
+                                    tint = textColorByBrightness.copy(alpha = if(lessLyricsAvailable.value) 1f else 0.3f),
+                                )
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_action_navigate_next),
+                                    contentDescription = "icon",
+                                    modifier = Modifier
+                                        .height(30.dp)
+                                        .width(30.dp)
+                                        .align(Alignment.CenterVertically)
+                                        .clickable {
+                                            if (moreLyricsAvailable.value) {
+                                                viewModel.loadLyricsIndex(curLyricsIndex + 1)
+                                            }
+                                        },
+                                    tint = textColorByBrightness.copy(alpha = if(moreLyricsAvailable.value) 1f else 0.3f),
+                                )
+
+                            //GlideImage(model = "", contentDescription = )
+                            }
+
                             SelectionContainer() {
-                                Text(text = currentSongLyrics.toString(), fontFamily = Jost, fontSize = 15.sp, color = textColorByBrightness, maxLines = 800)
+                                Row() {
+                                    Text(text = currentSongLyrics.toString(), fontFamily = Jost, fontSize = 15.sp, color = textColorByBrightness, maxLines = 800)
+                                }
+
                             }
                         }
                     }
@@ -640,53 +698,6 @@ fun SongPagerItem(
     }
 
     Column(modifier = Modifier.fillMaxSize()
-
-      /*  .pointerInput(Unit) {
-
-            var totalDragX = 0f
-            var totalDragY = 0f
-
-            detectDragGestures(
-                onDragStart = { start ->
-                    // Reset accumulated drag values
-                    totalDragX = 0f
-                    totalDragY = 0f
-                },
-                onDragEnd = {},
-                onDragCancel = {},
-                onDrag = { change, dragAmount ->
-                    println(change)
-                    println(dragDirection.value)
-                    // Accumulate drag amount
-                    totalDragX += dragAmount.x
-                    totalDragY += dragAmount.y
-
-                    // Determine the drag direction based on the accumulated drag amount
-                    if (abs(totalDragX) > abs(totalDragY)) {
-                        dragDirection.value = DragDirection.Horizontal
-                        println("Horizontal")
-                    } else if (abs(totalDragY) > abs(totalDragX)) {
-                        dragDirection.value = DragDirection.Vertical
-                        println("Vertical")
-                    }
-                }
-            )
-
- *//*           detectDragGestures { change, dragAmount ->
-
-                //print("Drag: ")
-
-                if(change.positionChange().x > change.positionChange().y){
-                    dragDirection.value = DragDirection.Horizontal
-                    //println("Horiztonal " + dragAmount)
-                    change.consume()
-                }else{
-                  //  println("Vertical " + dragAmount)
-                    dragDirection.value = DragDirection.Vertical
-                    change.consume()
-                }
-            }*//*
-        }*/
 
 
     ) {
@@ -740,42 +751,38 @@ fun SongPagerItem(
         )
     }*/
 
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier
-                .padding(start = 10.dp, end = 10.dp)
-                .fillMaxWidth()
-        ) {
-            Column(modifier = Modifier, verticalArrangement = Arrangement.Center) {
+        Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier
+            .padding(start = 10.dp, end = 10.dp)
+            .fillMaxWidth()) {
+
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
                 Text(
-                    song.songName.toString(),
+                    text = currentSong?.songName ?: "",
                     fontSize = 16.sp,
                     color = textColorByBrightness,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    if (song.songArtist == null) {
-                        ""
-                    } else {
-                        song.songArtist.toString()
-                    },
+                    text = currentSong?.songArtist ?: "",
                     fontSize = 12.sp,
                     color = textColorByBrightness,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
+            val isSongFavorite by remember { viewModel.isSongInFavorites }
             Icon(
-                painter = painterResource(id = R.drawable.ic_action_favorite),
+                painter = painterResource(id = if(!isSongFavorite) R.drawable.ic_action_favorite else R.drawable.ic_action_favorite_filled),
                 contentDescription = "icon",
                 modifier = Modifier
                     .height(25.dp)
                     .width(25.dp)
-                    .align(Alignment.CenterVertically)
-                    .clickable {},
+                    .align(Alignment.Top)
+                    .clickable {
+                        currentSong?.let { viewModel.toggleFavorite(it) }
+                    },
                 tint = textColorByBrightness
             )
         }
@@ -831,29 +838,46 @@ fun PlaybackItems(
 
     val settings = viewModel.playerScreenSettings.collectAsState(initial = null).value
 
-    LaunchedEffect(isPlaying){
+    val timer = remember { mutableStateOf<Timer?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+
+    var sync = remember { 0 }
+
+    LaunchedEffect(isPlaying, currentSong){
         viewModel.currentPosition.update {
             viewModel.getCurrentPosition().toInt()
         }
     }
 
-    LaunchedEffect(currentSong){
+    DisposableEffect(Unit) {
+        onDispose {
+            timer.value?.cancel()
+        }
+    }
+
+    LaunchedEffect(playbackPosition) {
+        delay(500)
         viewModel.currentPosition.update {
             viewModel.getCurrentPosition().toInt()
         }
     }
 
-    LaunchedEffect(playbackPosition){
-        delay(1000)
-        if(isPlaying){
-            viewModel.currentPosition.update {viewModel.getCurrentPosition().toInt()}
-        }
-    }
+    LaunchedEffect(isPlaying, currentSong) {
+        if (isPlaying) {
+            timer.value = kotlin.concurrent.timer("PlaybackTimer", false, 0L, 5) {
+                viewModel.currentPosition.value += 5
+                sync += 5
 
-
-    LaunchedEffect(playbackPosition){
-        if(isPlaying){
-            viewModel.currentPosition.update {it+10}
+                if (sync > 1000) {
+                    // Use the coroutineScope to launch a coroutine
+                    coroutineScope.launch {
+                        viewModel.currentPosition.value = viewModel.getCurrentPosition().toInt()
+                        sync = 0
+                    }
+                }
+            }
+        } else {
+            timer.value?.cancel()
         }
     }
     
@@ -909,10 +933,17 @@ fun PlaybackItems(
         val shuffleList = viewModel.shuffleList.collectAsState().value
         val shuffleState = viewModel.shuffleStatus.collectAsState().value
         val scope = rememberCoroutineScope()
+        val repeatMode = viewModel.repeatMode
+        val icon = remember { when(repeatMode.value){
+            Player.REPEAT_MODE_ALL -> R.drawable.ic_action_repeat
+            Player.REPEAT_MODE_ONE -> R.drawable.ic_action_repeat_one
+            Player.REPEAT_MODE_OFF -> R.drawable.ic_action_no_repeat
+            else -> R.drawable.ic_action_no_repeat
+        } }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
             if(settings?.showAddToPlaylist?:true) {
-                PlayerAction(icon = R.drawable.ic_action_playlist, onClick = {}, contentDescription = "Playlists", iconScale = 0.75f, size = 40.dp)
+                PlayerAction(icon = R.drawable.ic_action_playlist, onClick = {viewModel.togglePlaylistMenu()}, contentDescription = "Playlists", iconScale = 0.75f, size = 40.dp)
             }
             PlayerAction(icon = R.drawable.ic_action_previous, onClick = {
                /* if(shuffleState==true) {
@@ -942,7 +973,13 @@ fun PlaybackItems(
                 //viewModel.playIndexDelay(500)
                                                                      }, contentDescription = "Next", iconScale = 0.65f, size = 50.dp)
             if(settings?.showRepeatMode?:true){
-                PlayerAction(icon = R.drawable.ic_action_mix, onClick = {}, contentDescription = "Mix", iconScale = 0.75f, size = 40.dp)
+                PlayerAction(icon =
+                when(repeatMode.value){
+                    Player.REPEAT_MODE_ALL -> R.drawable.ic_action_repeat
+                    Player.REPEAT_MODE_ONE -> R.drawable.ic_action_repeat_one
+                    Player.REPEAT_MODE_OFF -> R.drawable.ic_action_no_repeat
+                    else -> R.drawable.ic_action_no_repeat},
+                    onClick = {viewModel.toggleRepeatMode()}, contentDescription = "Mix", iconScale = 0.75f, size = 40.dp)
             }
 
         }
