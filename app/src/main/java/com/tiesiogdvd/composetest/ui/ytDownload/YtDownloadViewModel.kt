@@ -363,10 +363,10 @@ class YtDownloadViewModel @Inject constructor(
             if(!musicDao.playlistExists(playlistName)){
                 musicDao.insertPlaylist(Playlist(playlistName))
             }
-            musicDao.insertSong(Song(
+            val playlist = musicDao.getPlaylist(playlistName)
+            musicDao.insertSongToPlaylist(song=Song(
                 songName = musicData.title,
                 songPath = file.absolutePath,
-                playlistId = musicDao.getPlaylist(playlistName).id,
                 year = musicData.year,
                 trackNumber = musicData.trackNumber,
                 genre = musicData.genre,
@@ -374,7 +374,7 @@ class YtDownloadViewModel @Inject constructor(
                 songArtist = musicData.artist,
                 albumArtist = musicData.albumArtist,
                 length = musicData.length.toLong()
-            ))
+            ), playlistId = playlist.id)
             MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null) { _, _ -> }
             itemListFlow.value.get(key)?.downloadState?.value = DownloadState.FINISHED
         }

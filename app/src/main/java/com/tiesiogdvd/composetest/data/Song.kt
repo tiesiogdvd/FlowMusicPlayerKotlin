@@ -8,9 +8,7 @@ import androidx.room.PrimaryKey
 import kotlinx.parcelize.Parcelize
 import java.text.DateFormat
 
-@Entity(tableName = "songs_table", foreignKeys = [
-    ForeignKey(entity = Playlist::class, parentColumns = arrayOf("id"), childColumns = arrayOf("playlistId"), onDelete = ForeignKey.CASCADE)
-])
+@Entity(tableName = "songs_table", indices = [Index(value = ["songPath"], unique = true)])
 @Parcelize
 data class Song(
     val songName: String? = null,
@@ -21,8 +19,6 @@ data class Song(
 
     val hasBitmap: Boolean? = null,
     val isBitmapCached: Boolean? = null,
-    val inFavorites: Boolean = false,
-    val inAllSongs: Boolean = false,
 
     val songArtist: String? = null,
     val albumArtist: String? = null,
@@ -32,7 +28,6 @@ data class Song(
     val year: String? = null,
 
 
-    val playlistId: Int,
     val created:Long = System.currentTimeMillis(),
     @PrimaryKey(autoGenerate = true) val id:Int = 0
 ) : Parcelable{

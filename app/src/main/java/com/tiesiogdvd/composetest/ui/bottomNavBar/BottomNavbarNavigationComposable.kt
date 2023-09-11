@@ -53,7 +53,7 @@ fun BottomNavigationBar(
     val isNavbarVisible = viewModel.isNavbarVisible.collectAsState().value
     val isSongbarVisible = viewModel.isSongbarVisible.collectAsState().value
     val backStackEntry = navController.currentBackStackEntryAsState() //Important for recomposition when route changes
-    val currentSong = viewModel.currentSource.collectAsState(initial = Song("Loading", "Loading", playlistId = 0)).value
+    val currentSong = viewModel.currentSource.collectAsState(initial = Song("Loading", "Loading")).value
     val currentDestination = backStackEntry.value?.destination?.route
 
     val expanded = remember { mutableStateOf(false) }
