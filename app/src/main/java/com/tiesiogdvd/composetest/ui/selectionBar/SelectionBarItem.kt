@@ -26,6 +26,11 @@ object SelectionBarList{
         SelectionBarItem("Delete", icon = R.drawable.ic_action_playlist, selectionType = SelectionType.PLAYLIST, isMultipleAllowed = true),
         SelectionBarItem("Set playlist cover", icon = R.drawable.ic_action_playlist, selectionType = SelectionType.PLAYLIST, isMultipleAllowed = false),
 
+        SelectionBarItem("Add to playlist", icon = R.drawable.ic_action_playlist, selectionType = SelectionType.FAVORITES, isMultipleAllowed = true),
+        SelectionBarItem("Remove from favorites", icon = R.drawable.ic_action_playlist, selectionType = SelectionType.FAVORITES, isMultipleAllowed = true),
+        SelectionBarItem("Delete", icon = R.drawable.ic_action_playlist, selectionType = SelectionType.FAVORITES, isMultipleAllowed = true),
+        SelectionBarItem("Set favorites cover", icon = R.drawable.ic_action_playlist, selectionType = SelectionType.FAVORITES, isMultipleAllowed = false),
+
         SelectionBarItem("Add to playlist", icon = R.drawable.ic_action_playlist, selectionType = SelectionType.FOLDERS, isMultipleAllowed = true),
         SelectionBarItem("Delete", icon = R.drawable.ic_action_playlist, selectionType = SelectionType.FOLDERS, isMultipleAllowed = true),
         SelectionBarItem("Rename", icon = R.drawable.ic_action_playlist, selectionType = SelectionType.FOLDERS, isMultipleAllowed = false),
